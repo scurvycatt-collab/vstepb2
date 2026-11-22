@@ -333,7 +333,7 @@
       main += `<section class="card"><h2>Ôn tự do</h2><p>Hôm nay không có bài trong lịch.</p><a class="btn primary block" href="#/review">Ôn câu đến hạn</a></section>`;
     }
     const dw = dueWords().length;
-    if (dw) main += `<section class="card"><h3>📚 Ôn từ vựng</h3><p class="muted">${dw} từ đến hạn ôn. Mất khoảng 1 phút.</p><a class="btn primary block" href="#/words">Ôn ${dw} từ</a></section>`;
+    if (dw) main += `<section class="card"><h3>Ôn từ vựng</h3><p class="muted">${dw} từ đến hạn ôn. Mất khoảng 1 phút.</p><a class="btn primary block" href="#/words">Ôn ${dw} từ</a></section>`;
     if (missed.length) {
       main += `<section class="card"><h3>Buổi bị lỡ (${missed.length})</h3><p class="muted">Học bù khi có thời gian. Ưu tiên buổi học bài mới (tuần 1–3).</p>
         <div class="list">${missed.slice(0, 4).map(dayRow).join('')}</div>${missed.length > 4 ? '<a href="#/plan" class="link">Xem tất cả →</a>' : ''}</section>`;
@@ -443,7 +443,7 @@
     const vg = Object.keys(VOC.groups).filter(k => k === 's' + id || k.startsWith('s' + id + '-'));
     const nw = vg.reduce((a, k) => a + VOC.groups[k].length, 0);
     const row = c => { const it = S.items[c.id]; return `<a class="row" href="#/card/${c.id}"><span class="ttl">${esc(cardTitle(c))}</span><span class="st">${it ? ['✗', '~', '✓'][it.lastRate] : ''}</span></a>`; };
-    let body = nw ? `<a class="card setcard" href="#/vocab/${id}"><div class="eyebrow">📚 Từ vựng</div><div class="p">${nw} từ và cụm từ của ${setName(id).toLowerCase()}, có ví dụ và phát âm</div></a>` : '';
+    let body = nw ? `<a class="card setcard" href="#/vocab/${id}"><div class="eyebrow">Từ vựng</div><div class="p">${nw} từ và cụm từ của ${setName(id).toLowerCase()}, có ví dụ và phát âm</div></a>` : '';
     s.p1.forEach((tp, ti) => {
       body += `<section class="card"><div class="eyebrow">Part 1 · Chủ đề ${ti + 1}</div><h3>${esc(tp.title)} <span class="vi">${esc(tp.title_vi)}</span></h3><div class="list">${tp.qs.map(q => row(CARDS[q.id])).join('')}</div></section>`;
     });
@@ -455,7 +455,7 @@
 
   /* ---------- Từ vựng: thẻ từ + kiểm tra nhanh ---------- */
   const markW = (x, w) => { const i = x.toLowerCase().indexOf(w.toLowerCase()); return i < 0 ? esc(x) : esc(x.slice(0, i)) + '<mark>' + esc(x.slice(i, i + w.length)) + '</mark>' + esc(x.slice(i + w.length)); };
-  const wordCards = list => `<div class="wlist">${list.map(x => `<div class="wcard"><div class="wemo" aria-hidden="true">${x.e}</div><div class="wbody">
+  const wordCards = list => `<div class="wlist">${list.map(x => `<div class="wcard"><div class="wbody">
       <div class="wtop"><button class="say wsay" data-say="${esc(x.w)}" aria-label="Nghe từ">▶</button><b class="w">${esc(x.w)}</b></div>
       <div class="wm">${esc(x.m)} <span class="pos">${esc(x.p)}</span></div>
       <div class="wx"><button class="say wsay sm" data-say="${esc(x.x)}" aria-label="Nghe câu ví dụ">▶</button><span>${markW(x.x, x.w)}</span></div>
@@ -467,14 +467,14 @@
     const qs = items.slice().sort(() => Math.random() - 0.5);
     const draw = () => {
       if (i >= qs.length) {
-        box.innerHTML = `<div class="qend"><div class="big">${right === qs.length ? '🎉' : '👍'}</div><p><b>Đúng ${right}/${qs.length} từ.</b> ${right < qs.length ? 'Từ sai sẽ quay lại để ôn vào ngày mai.' : 'Rất tốt!'}</p></div>`;
+        box.innerHTML = `<div class="qend"><p><b>Đúng ${right}/${qs.length} từ.</b> ${right < qs.length ? 'Từ sai sẽ quay lại để ôn vào ngày mai.' : 'Rất tốt!'}</p></div>`;
         return onEnd && onEnd(right, qs.length);
       }
       const x = qs[i];
       const others = items.filter(y => y.w !== x.w).concat(pool.filter(y => y.w !== x.w)).filter((y, k, a) => a.findIndex(z => z.w === y.w) === k);
       const pick = others.sort(() => Math.random() - 0.5).slice(0, 2);
       const opts = pick.concat([x]).sort(() => Math.random() - 0.5);
-      box.innerHTML = `<div class="qhead"><span class="tiny">Câu ${i + 1}/${qs.length}</span></div><div class="qmean"><span class="wemo">${x.e}</span><b>${esc(x.m)}</b></div>
+      box.innerHTML = `<div class="qhead"><span class="tiny">Câu ${i + 1}/${qs.length}</span></div><div class="qmean"><b>${esc(x.m)}</b></div>
         <p class="tiny">Từ tiếng Anh nào có nghĩa này?</p><div class="qopts">${opts.map(o => `<button class="btn" data-w="${esc(o.w)}">${esc(o.w)}</button>`).join('')}</div>`;
       $$('.qopts button', box).forEach(b => b.onclick = () => {
         const ok = b.dataset.w === x.w;
@@ -492,7 +492,7 @@
     const s = D.sets[id - 1]; if (!s) return go('#/sets');
     const keys = Object.keys(VOC.groups).filter(k => k === 's' + id || k.startsWith('s' + id + '-'));
     const label = k => { if (k === 's' + id) return s.name || 'Cả bộ'; if (k.includes('-p1-')) return 'Part 1 · ' + s.p1[+k.split('-')[2] - 1].title; return k.endsWith('p2') ? 'Part 2' : 'Part 3'; };
-    const body = keys.map(k => `<section class="card"><div class="eyebrow">${esc(label(k))}</div>${wordCards(VOC.groups[k])}<button class="btn block" data-quiz="${k}">✍️ Kiểm tra nhanh</button><div class="quiz" id="q-${k}"></div></section>`).join('');
+    const body = keys.map(k => `<section class="card"><div class="eyebrow">${esc(label(k))}</div>${wordCards(VOC.groups[k])}<button class="btn block" data-quiz="${k}">Kiểm tra nhanh</button><div class="quiz" id="q-${k}"></div></section>`).join('');
     page('sets', 'Từ vựng · ' + setName(id), `<p class="muted pad">Bấm ▶ để nghe. Đọc to từ và câu ví dụ 2 lần, rồi làm bài kiểm tra.</p>` + body, { back: `#/set/${id}` });
     bindSay();
     $$('[data-quiz]').forEach(b => b.onclick = () => { b.hidden = true; quiz($('#q-' + b.dataset.quiz), VOC.groups[b.dataset.quiz]); });
@@ -634,7 +634,7 @@
   function stepWords(ctx) {
     const list = vocabOf(ctx.c);
     return `<section class="card"><h3>Từ mới cho câu này</h3><p class="muted">Bấm ▶ nghe từng từ và câu ví dụ, đọc to theo. Sau đó làm bài kiểm tra 1 phút.</p>${wordCards(list)}
-      <button class="btn block" id="doquiz">✍️ Kiểm tra nhanh (1 phút)</button><div class="quiz" id="wquiz"></div></section>
+      <button class="btn block" id="doquiz">Kiểm tra nhanh (1 phút)</button><div class="quiz" id="wquiz"></div></section>
       <button class="btn primary block nextbtn" id="nx">${nextLabel(ctx)}</button>`;
   }
   function bindWords(ctx) {

@@ -190,7 +190,7 @@ p { margin: 8px 0; }
 .pos { font-size: calc(12px * var(--fs)); font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
 .wx { display: flex; gap: 8px; align-items: flex-start; font-size: calc(16px * var(--fs)); }
 .wx mark { background: var(--mark); color: inherit; border-radius: 4px; padding: 0 2px; }
-.wxv { color: var(--muted); font-size: calc(15px * var(--fs)); font-style: italic; margin: 2px 0 0 40px; }
+.wxv { color: var(--muted); font-size: calc(15px * var(--fs)); font-style: italic; margin: 2px 0 0 38px; }
 .say.wsay.sm { width: 30px; height: 30px; flex-basis: 30px; font-size: calc(12px * var(--fs)); }
 /* Kiểm tra nhanh */
 .quiz:empty { display: none; }
@@ -200,7 +200,7 @@ p { margin: 8px 0; }
 .qopts .btn { min-height: 52px; font-size: calc(18px * var(--fs)); font-weight: 600; justify-content: flex-start; }
 .qopts .btn.good { background: var(--okbg); border-color: var(--good); color: var(--good); }
 .qopts .btn.bad { background: var(--badbg); border-color: var(--bad); color: var(--bad); }
-.qend { text-align: center; } .qend .big { font-size: calc(44px * var(--fs)); }
+.qend { text-align: center; }
 /* Nghe: chọn bản, điều khiển từng câu */
 .seg.two { grid-template-columns: 1fr 1fr; }
 .player { display: grid; grid-template-columns: 1fr 1.6fr 1.4fr 1fr; gap: 6px; margin: 10px 0; }
