@@ -161,3 +161,4 @@ p { margin: 8px 0; }
 .seg button.on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
 .seg.fs button:nth-child(1) { font-size: 15px; } .seg.fs button:nth-child(2) { font-size: 17px; } .seg.fs button:nth-child(3) { font-size: 20px; } .seg.fs button:nth-child(4) { font-size: 23px; }
 .modeinfo { font-size: calc(14px * var(--fs)); color: var(--muted); }
+.seg.speed { grid-template-columns: repeat(3, 1fr); }

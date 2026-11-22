@@ -24,7 +24,7 @@
 
   /* ---------- Lưu trữ ---------- */
   const KEY = 'vstep-b2-progress-v1';
-  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.85, voice: '', showVi: false, fs: 1, minutes: 30, eleven: true, setup: false } });
+  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.9, voice: '', showVi: false, fs: 1, minutes: 30, eleven: true, setup: false } });
   let S;
   try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = defaults(); }
   S.settings = Object.assign(defaults().settings, S.settings || {});
@@ -150,6 +150,16 @@
       u.onend = () => res(Date.now() - t0);
       u.onerror = () => res(Date.now() - t0);
       synth.speak(u);
+    });
+  }
+  // Chọn tốc độ đọc: dùng ở màn Aa, bước Nghe và trang Tiến độ
+  const SPEEDS = [0.7, 0.8, 0.9, 1, 1.15, 1.3];
+  const speedSeg = () => `<div class="seg speed">${SPEEDS.map(v => `<button data-rate="${v}" class="${Math.abs(S.settings.rate - v) < 0.01 ? 'on' : ''}">${v}×</button>`).join('')}</div>`;
+  function bindSpeed(root = document) {
+    $$('.seg.speed button', root).forEach(b => b.onclick = () => {
+      S.settings.rate = +b.dataset.rate; save();
+      $$('.seg.speed button').forEach(x => x.classList.toggle('on', Math.abs(+x.dataset.rate - S.settings.rate) < 0.01));
+      if (playerDone) player.playbackRate = S.settings.rate;
     });
   }
   const stopSay = () => { if (synth) synth.cancel(); if (playerDone) { player.pause(); playerDone(); } };
@@ -336,10 +346,13 @@
       <section class="card"><h3>Mỗi ngày học bao lâu?</h3><div class="seg" id="mins">${Object.keys(MODES).map(m => `<button data-v="${m}" class="${+S.settings.minutes === +m ? 'on' : ''}">${m === '60' ? '1 tiếng' : m + ' phút'}</button>`).join('')}</div>
         <p class="modeinfo" id="minfo">${esc(mode().info)}</p>
         <p class="muted">Bài mới mỗi ngày giữ nguyên để kịp học hết 6 đề trước 29/12. Thời lượng chỉ thay đổi cách học: số bước, số lần nói, số câu ôn.</p></section>
+      <section class="card"><h3>Tốc độ đọc bài mẫu</h3>${speedSeg()}<button class="btn" id="spdtest">▶ Nghe thử</button>
+        <p class="muted">1× là tốc độ nói bình thường. Mới học nên để 0.8× hoặc 0.9×, gần ngày thi tăng lên 1×.</p></section>
       <a class="btn primary block" href="#/today" id="ok">${first ? 'Bắt đầu' : 'Xong'}</a>`;
     page('today', first ? 'Thiết lập' : 'Cỡ chữ & thời lượng', body, { back: first ? null : '#/today', noNav: first });
     $$('#fs button').forEach(b => b.onclick = () => { S.settings.fs = +b.dataset.v; save(); applyFs(); $$('#fs button').forEach(x => x.classList.toggle('on', x === b)); });
     $$('#mins button').forEach(b => b.onclick = () => { S.settings.minutes = +b.dataset.v; save(); $$('#mins button').forEach(x => x.classList.toggle('on', x === b)); $('#minfo').textContent = mode().info; });
+    bindSpeed(); $('#spdtest').onclick = () => { unlockAudio(); say(sentences(D.sets[0].p1[0].qs[0].a)[0]); };
     $('#ok').onclick = () => { S.settings.setup = true; save(); };
   }
 
@@ -502,6 +515,7 @@
     const showVi = S.settings.showVi;
     return `<section class="card">
       <div class="ctrl"><button class="btn" id="playall">▶ Nghe cả bài</button>${ctx.opts.session && !mode().shadow ? '' : '<button class="btn primary" id="shadow">🗣 Nói nhại từng câu</button>'}</div>
+      <div class="tiny">Tốc độ đọc</div>${speedSeg()}
       <label class="sw"><input type="checkbox" id="vitoggle" ${showVi ? 'checked' : ''}> Hiện bản dịch</label>
       <div class="model">${paras.map((p, pi) => `${p.h ? `<div class="ph">${esc(p.h)}</div>` : ''}<p>${sentences(p.t).map((s, si) => `<span class="sent" data-p="${pi}" data-s="${si}">${esc(s)}</span> `).join('')}</p><p class="vi vi-tr" ${showVi ? '' : 'hidden'}>${esc(p.t_vi)}</p>`).join('')}</div>
       <p class="muted" id="shadowhint">Nói nhại: máy đọc 1 câu, bạn nói lại ngay câu đó trong khoảng lặng.</p>
@@ -520,6 +534,7 @@
       }
       sents.forEach(x => x.classList.remove('hl', 'you'));
     };
+    bindSpeed();
     $('#playall').onclick = () => run(false);
     if ($('#shadow')) $('#shadow').onclick = () => run(true);
     sents.forEach(el => el.onclick = () => { stop = true; unlockAudio(); sents.forEach(x => x.classList.remove('hl')); el.classList.add('hl'); say(el.textContent); });
@@ -776,14 +791,14 @@
     body += `<section class="card"><h3>Cài đặt</h3>
       <a class="btn block" href="#/settings">Cỡ chữ & thời lượng học (${S.settings.minutes} phút)</a>
       ${audioCount() ? `<label class="sw"><input type="checkbox" id="eleven" ${S.settings.eleven !== false ? 'checked' : ''}> Dùng giọng ElevenLabs (${audioCount()} câu có sẵn)</label>` : '<p class="muted">Chưa có file giọng ElevenLabs, đang dùng giọng của iPhone.</p>'}
-      <label class="field">Tốc độ đọc mẫu: <b id="rv">${S.settings.rate}</b><input type="range" id="rate" min="0.6" max="1.1" step="0.05" value="${S.settings.rate}"></label>
+      <div class="field">Tốc độ đọc${speedSeg()}</div>
       <label class="field">Giọng iPhone (dự phòng)<select id="voice"><option value="">Tự chọn</option>${vs}</select></label>
       <button class="btn" id="test">▶ Nghe thử</button>
       <p class="muted">Muốn giọng hay hơn: Cài đặt iPhone › Trợ năng › Nội dung được đọc › Giọng nói › English, tải giọng “Enhanced”.</p></section>
       <section class="card"><h3>Sao lưu tiến độ</h3><p class="muted">Tiến độ chỉ lưu trên iPhone này. Sao lưu nếu bạn đổi máy hoặc xoá dữ liệu Safari.</p>
       <div class="ctrl"><button class="btn" id="exp">Tải file sao lưu</button><label class="btn">Khôi phục<input type="file" id="imp" accept="application/json" hidden></label></div></section>`;
     page('stats', 'Tiến độ', body);
-    $('#rate').oninput = e => { S.settings.rate = +e.target.value; $('#rv').textContent = S.settings.rate; save(); };
+    bindSpeed();
     $('#voice').onchange = e => { S.settings.voice = e.target.value; save(); };
     $('#test').onclick = () => { unlockAudio(); say(sentences(D.sets[0].p1[0].qs[0].a)[0]); };
     if ($('#eleven')) $('#eleven').onchange = e => { S.settings.eleven = e.target.checked; save(); };
