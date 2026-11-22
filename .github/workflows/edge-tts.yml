@@ -1,0 +1,65 @@
+name: Tạo giọng đọc Edge (miễn phí)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'samples = chỉ tạo file nghe thử, all = tạo toàn bộ'
+        type: choice
+        options: [samples, all]
+        default: samples
+      answer_voice:
+        description: 'Giọng bài mẫu'
+        default: 'en-US-AvaMultilingualNeural'
+        required: true
+      question_voice:
+        description: 'Giọng giám khảo'
+        default: 'en-GB-RyanNeural'
+        required: true
+      redo:
+        description: 'Tạo lại cả câu đã có (dùng khi đổi giọng)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: tts
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install edge-tts==7.3.1
+      - name: Tạo file âm thanh
+        env:
+          ANSWER_VOICE: ${{ inputs.answer_voice }}
+          QUESTION_VOICE: ${{ inputs.question_voice }}
+        run: |
+          if [ "${{ inputs.mode }}" = "samples" ]; then
+            python tools/edge_tts_gen.py --samples
+          else
+            EXTRA=""
+            if [ "${{ inputs.redo }}" = "true" ]; then EXTRA="--redo"; fi
+            python tools/edge_tts_gen.py $EXTRA
+          fi
+      - name: Lưu file vào repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A audio samples 2>/dev/null || true
+          if git diff --cached --quiet; then echo "Không có file mới"; exit 0; fi
+          git commit -m "Thêm giọng đọc Edge (${{ inputs.mode }})"
+          git pull --rebase origin main
+          git push
+      - name: Cập nhật GitHub Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "Pages sẽ tự cập nhật"
