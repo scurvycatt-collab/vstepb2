@@ -25,16 +25,22 @@ SAMPLE_ANSWER_VOICES = ['en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNe
 SAMPLE_QUESTION_VOICES = ['en-GB-RyanNeural', 'en-US-BrianMultilingualNeural']
 
 
-async def speak(text, voice, path, rate):
-    for attempt in range(5):
+async def speak(text, voice, path, rate, strict=True):
+    """Trả về True nếu tạo được file. Dịch vụ Edge đôi khi chặn tạm thời, nên chờ lâu dần rồi thử lại."""
+    for attempt in range(6):
         try:
             await edge_tts.Communicate(text, voice, rate=rate).save(path)
-            if os.path.getsize(path) > 0:
-                return
-        except Exception as e:  # mạng chập chờn: thử lại
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                return True
+        except Exception as e:  # mạng chập chờn hoặc bị giới hạn: thử lại
             print('  thử lại (%s): %s' % (attempt + 1, e))
-        await asyncio.sleep(3 * (attempt + 1))
-    raise SystemExit('Không tạo được: %s' % text[:60])
+        await asyncio.sleep(min(60, 5 * 2 ** attempt))
+    if os.path.exists(path) and os.path.getsize(path) == 0:
+        os.remove(path)
+    if strict:
+        raise SystemExit('Không tạo được: %s' % text[:60])
+    print('  BỎ QUA (chạy lại workflow để tạo tiếp): %s' % text[:60])
+    return False
 
 
 async def samples(rate):
@@ -64,16 +70,26 @@ async def generate(a):
     if a.limit:
         todo = todo[:a.limit]
     os.makedirs(AUDIO_DIR, exist_ok=True)
+    failed = 0
     for i, (t, k) in enumerate(todo, 1):
         h = fnv(t)
         voice = a.question_voice if k == 'q' else a.answer_voice
-        await speak(t, voice, os.path.join(AUDIO_DIR, h + '.mp3'), a.rate)
+        ok = await speak(t, voice, os.path.join(AUDIO_DIR, h + '.mp3'), a.rate, strict=False)
+        await asyncio.sleep(0.4)  # đi chậm để không bị chặn
+        if not ok:
+            failed += 1
+            if failed >= 15:
+                print('Dịch vụ đang chặn, dừng lại và lưu phần đã tạo.')
+                break
+            continue
+        failed = 0
         manifest[h] = 'audio/%s.mp3' % h
         if i % 20 == 0 or i == len(todo):
             json.dump(manifest, open(MANIFEST, 'w', encoding='utf-8'), indent=0, sort_keys=True)
             print('  %d/%d' % (i, len(todo)))
     json.dump(manifest, open(MANIFEST, 'w', encoding='utf-8'), indent=0, sort_keys=True)
-    print('Xong. Manifest có %d file.' % len(manifest))
+    left = sum(1 for t, _ in items if fnv(t) not in manifest)
+    print('Xong. Manifest có %d file, còn thiếu %d câu.' % (len(manifest), left))
 
 
 def main():
