@@ -51,10 +51,21 @@ def sentences(text):
     return [p.strip() for p in parts if p.strip()]
 
 
+def _load_js(name):
+    path = os.path.join(ROOT, 'assets', name)
+    if not os.path.exists(path):
+        return None
+    raw = open(path, encoding='utf-8').read()
+    return json.loads(raw[raw.index('{'):raw.rindex('}') + 1])
+
+
 def load_data():
-    raw = open(os.path.join(ROOT, 'assets', 'data.js'), encoding='utf-8').read()
-    raw = raw[raw.index('{'):raw.rindex('}') + 1]
-    return json.loads(raw)
+    data = _load_js('data.js')
+    extra = _load_js('extra.js')
+    if extra:
+        data['sets'] = data['sets'] + extra['sets']
+    data['vocab_js'] = _load_js('vocab.js') or {}
+    return data
 
 
 def collect(data):
@@ -88,6 +99,14 @@ def collect(data):
                 add(x, 'a')
     for tpl in data['templates'].values():
         for en, _vi in tpl['lines']:
+            add(en.replace('…', ''), 'a')
+    voc = data.get('vocab_js') or {}
+    for group in voc.get('groups', {}).values():
+        for x in group:
+            add(x['w'], 'a')
+            add(x['x'], 'a')
+    for _e, _t, lines in voc.get('phrases', []):
+        for en, _vi in lines:
             add(en.replace('…', ''), 'a')
     return items
 
