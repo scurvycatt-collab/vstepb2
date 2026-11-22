@@ -29,7 +29,7 @@
 
   /* ---------- Lưu trữ ---------- */
   const KEY = 'vstep-b2-progress-v1';
-  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.9, voice: '', showVi: false, fs: 1, minutes: 30, eleven: true, setup: false, guide: false }, words: {}, vseen: {} });
+  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.9, voice: '', showVi: false, fs: 1, minutes: 30, eleven: true, setup: false, guide: false, autoScore: true }, words: {}, vseen: {} });
   let S;
   try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = defaults(); }
   const hadGuide = !!S.settings && 'guide' in S.settings;
@@ -40,8 +40,8 @@
   applyFs();
   // Chế độ thời lượng học mỗi ngày
   const MODES = {
-    15: { review: 1, learn: false, shadow: false, attempts: 1, extraMock: false, info: 'Từ mới → nghe 1 lần → nói & ghi âm → tự chấm. Bỏ bước dàn ý (gợi ý hiện ở bước Nói). Part 2, 3 nói 2 lần. Ôn 1 câu.' },
-    20: { review: 2, learn: false, shadow: true, attempts: 1, extraMock: false, info: 'Từ mới → nghe + nói nhại → nói & ghi âm → tự chấm. Part 2, 3 nói 2 lần. Ôn 2 câu.' },
+    15: { review: 1, learn: false, shadow: false, attempts: 1, extraMock: false, info: 'Từ mới → nghe 1 lần → nói & ghi âm → chấm điểm. Bỏ bước dàn ý (gợi ý hiện ở bước Nói). Part 2, 3 nói 2 lần. Ôn 1 câu.' },
+    20: { review: 2, learn: false, shadow: true, attempts: 1, extraMock: false, info: 'Từ mới → nghe + nói nhại → nói & ghi âm → chấm điểm. Part 2, 3 nói 2 lần. Ôn 2 câu.' },
     30: { review: 3, learn: true, shadow: true, attempts: 1, extraMock: false, info: 'Đủ 5 bước: Từ mới → Nghe → Dàn ý → Nói → Chấm. Part 2, 3 nói 3 lần, mỗi lần ngắn hơn. Ôn 3 câu.' },
     40: { review: 5, learn: true, shadow: true, attempts: 2, extraMock: false, info: 'Đủ 5 bước. Part 1 nói 2 lần, Part 2, 3 nói 3 lần (lần sau che gợi ý). Ôn 5 câu.' },
     60: { review: 8, learn: true, shadow: true, attempts: 2, extraMock: true, info: 'Đủ 5 bước, nói nhiều lần, ôn 8 câu, cuối buổi thi thử thêm phần đang học (có cả bộ luyện thêm).' },
@@ -339,7 +339,7 @@
         <div class="list">${missed.slice(0, 4).map(dayRow).join('')}</div>${missed.length > 4 ? '<a href="#/plan" class="link">Xem tất cả →</a>' : ''}</section>`;
     }
     main += `<section class="card tips"><h3>Mỗi câu hỏi có 5 bước</h3>
-      <ol class="steps"><li><b>Từ mới</b>: xem thẻ từ, nghe, làm bài kiểm tra 1 phút</li><li><b>Nghe</b> bài mẫu, nói nhại theo từng câu (bắt đầu bằng bản ngắn)</li><li><b>Dàn ý</b>: nhớ ý chính và khung câu</li><li><b>Nói</b>: ghi âm, đếm giờ như phòng thi</li><li><b>Chấm</b>: nghe lại, tick ý đã nói được</li></ol>
+      <ol class="steps"><li><b>Từ mới</b>: xem thẻ từ, nghe, làm bài kiểm tra 1 phút</li><li><b>Nghe</b> bài mẫu, nói nhại theo từng câu (bắt đầu bằng bản ngắn)</li><li><b>Dàn ý</b>: nhớ ý chính và khung câu</li><li><b>Nói</b>: ghi âm, đếm giờ như phòng thi</li><li><b>Chấm</b>: máy nghe bài nói, tự tick ý đã nói được và gợi ý điểm</li></ol>
       <p class="muted">Chế độ 15 và 20 phút bỏ bước Dàn ý.</p><a class="link" href="#/templates">Xem khung câu và kho cụm câu →</a></section>`;
     page('today', 'VSTEP B2 Speaking', main, { right: `<a class="icon-btn" href="#/settings" aria-label="Cỡ chữ và thời lượng">Aa</a><a class="icon-btn" href="#/templates" aria-label="Khung câu và cụm câu">Câu mẫu</a>` });
   }
@@ -587,7 +587,7 @@
   }
 
   /* ---------- Thẻ luyện tập: Nghe → Học → Nói → Chấm ---------- */
-  const STEPNAME = { 'Từ mới': 'Học từ mới', 'Nghe': 'Nghe bài mẫu', 'Dàn ý': 'Nhớ dàn ý', 'Nói': 'Nói và ghi âm', 'Chấm': 'Tự chấm' };
+  const STEPNAME = { 'Từ mới': 'Học từ mới', 'Nghe': 'Nghe bài mẫu', 'Dàn ý': 'Nhớ dàn ý', 'Nói': 'Nói và ghi âm', 'Chấm': 'Chấm điểm' };
   function renderCard(c, opts = {}) {
     const full = !opts.session || mode().learn;
     const g = vgroup(c);
@@ -750,8 +750,9 @@
       ${Rec.supported() ? '' : '<p class="warn">Trình duyệt này không ghi âm được. Hãy mở bằng Safari trên iPhone (iOS 14.3 trở lên).</p>'}
       <div class="ctrl center"><button class="btn rec" id="go">${prep ? '▶ Bắt đầu chuẩn bị' : '● Ghi âm & nói'}</button></div>
       <div class="ctrl center"><button class="btn" id="stop" hidden>■ Dừng</button></div>
+      <div class="livetr" id="livetr" hidden></div>
       <div id="playback"></div>
-    </section><button class="btn block nextbtn ${ctx.rec ? 'primary' : ''}" id="nx">${ctx.rec ? 'Tiếp: Tự chấm →' : 'Bỏ qua ghi âm → Tự chấm'}</button>`;
+    </section><button class="btn block nextbtn ${ctx.rec ? 'primary' : ''}" id="nx">${ctx.rec ? 'Tiếp: Xem máy chấm →' : 'Bỏ qua ghi âm → Chấm điểm'}</button>`;
   }
   function bindSpeak(ctx) {
     const c = ctx.c;
@@ -764,6 +765,9 @@
       phase = 'talk';
       try { await Rec.start(); } catch (e) { tlabel.textContent = 'Không mở được micro. Kiểm tra Cài đặt › Safari › Micro.'; }
       beep(880, 160, 2);
+      ctx.t0 = Date.now(); ctx.talkSec = talkFor(ctx);
+      const lt = $('#livetr');
+      if (STT.start(t => { if (lt) { lt.hidden = false; lt.textContent = t.split(' ').slice(-18).join(' '); } })) { if (lt) { lt.hidden = false; lt.textContent = 'Máy đang nghe…'; } }
       go.hidden = true; stopB.hidden = false; timerEl.classList.add('live'); tlabel.textContent = '● Đang ghi âm, hãy nói';
       countdown(talkFor(ctx), l => { tval.textContent = mmss(l); timerEl.classList.toggle('low', l <= 10); }, () => finish(true));
     };
@@ -775,8 +779,11 @@
       const need = needAttempts(ctx);
       if (ctx.attempt < need) { go.textContent = `↻ Lần ${ctx.attempt + 1}: nói lại trong ${mmss(talkFor(ctx))}, che gợi ý`; const cb = $('.cuebox'); if (cb) cb.open = false; tval.textContent = mmss(talkFor(ctx)); }
       tlabel.textContent = (auto ? 'Hết giờ' : 'Đã dừng') + (ctx.attempt < need ? ` · nói thêm ${need - ctx.attempt} lần nữa` : '');
-      const r = await Rec.stop();
-      if (r) { ctx.rec = r; showPlayback(r); saveRec(c.id, r, PART_NAME[c.kind]); $('#nx').textContent = 'Tiếp: Tự chấm'; $('#nx').classList.add('primary'); }
+      const [r, tr] = await Promise.all([Rec.stop(), STT.ok() ? STT.stop() : Promise.resolve('')]);
+      ctx.transcript = tr; ctx.dur = (Date.now() - ctx.t0) / 1000;
+      const lt = $('#livetr'); if (lt) lt.hidden = true;
+      if (r) { ctx.rec = r; showPlayback(r); saveRec(c.id, r, PART_NAME[c.kind]); }
+      if (r || tr) { $('#nx').textContent = 'Tiếp: Xem máy chấm →'; $('#nx').classList.add('primary'); }
     };
     go.onclick = async () => {
       unlockAudio();
@@ -804,14 +811,21 @@
     ['Phát âm rõ đuôi -s, -ed và trọng âm từ chính', 'Pronunciation'],
   ];
   function stepCheck(ctx) {
+    const said = ctx.rec || ctx.transcript;
+    ctx.auto = ctx.transcript && toks(ctx.transcript).length >= 3 ? analyse(ctx.c, ctx.transcript, ctx.dur || 30, ctx.talkSec || speakTime(ctx.c)) : null;
+    const a = ctx.auto;
     return `<section class="card">
       ${ctx.rec ? audioHtml(ctx.rec.blob, 'Nghe lại bản ghi của bạn') : '<p class="muted">Chưa có bản ghi. Bạn có thể quay lại bước Nói.</p>'}
+      ${a ? autoHtml(a, ctx.transcript) : said ? noSttHtml() : ''}
+      ${a ? `<button class="btn primary block" id="useauto">Lưu kết quả: ${RATE_NAME[a.r]}<small>&nbsp;· ${a.r === 2 ? `ôn sau ${GAPS[Math.min(((S.items[ctx.c.id] || {}).box ?? -1) + 1, GAPS.length - 1)]} ngày` : 'ôn lại ngày mai'}</small></button>` : ''}
+      <details class="manual" ${a ? '' : 'open'}><summary>${a ? 'Muốn tự chấm lại? Mở ra để sửa' : 'Tự chấm'}</summary>
       <h3>Cách nói</h3><div class="checks">${CHECK.map(([t, k], i) => `<label class="chk"><input type="checkbox" class="crit" data-i="${i}"><span>${esc(t)} <small>${k}</small></span></label>`).join('')}</div>
       <h3>So với bài mẫu: bạn đã nói được ý nào?</h3><p class="tiny">Nghe lại bản ghi, tick những câu bạn đã nói được ý tương tự (không cần giống từng chữ).</p>
-      <div class="checks ideas">${keyIdeas(ctx.c).map((t, i) => `<label class="chk"><input type="checkbox" class="idea" data-i="${i}"><span>${esc(t)}</span></label>`).join('')}</div>
+      <div class="checks ideas">${keyIdeas(ctx.c).map((t, i) => `<label class="chk ${a ? (a.ideas[i].ok ? 'hit' : 'miss') : ''}"><input type="checkbox" class="idea" data-i="${i}" ${a && a.ideas[i].ok ? 'checked' : ''}><span>${esc(t)}</span></label>`).join('')}</div>
       <details><summary>Xem bài mẫu đầy đủ</summary><div class="model small">${cardModel(ctx.c).map(p => `${p.h ? `<div class="ph">${esc(p.h)}</div>` : ''}<p>${esc(p.t)}</p>`).join('')}</div></details>
       <h3>Bạn tự đánh giá</h3>
       <div class="rate"><button class="btn bad" data-r="0">Chưa được<small>ôn lại ngày mai</small></button><button class="btn mid" data-r="1">Tạm<small>ôn lại ngày mai</small></button><button class="btn good" data-r="2">Tốt<small>ôn sau ${GAPS[Math.min(((S.items[ctx.c.id] || {}).box ?? -1) + 1, GAPS.length - 1)]} ngày</small></button></div>
+      </details>
     </section>`;
   }
   function bindCheck(ctx) {
@@ -822,12 +836,108 @@
       $$('.rate button').forEach(b => b.classList.toggle('hint', +b.dataset.r === (score >= 0.75 ? 2 : score >= 0.4 ? 1 : 0)));
     };
     boxes.forEach(b => b.onchange = upd); upd();
-    $$('.rate button').forEach(b => b.onclick = () => {
-      rate(ctx.c.id, +b.dataset.r);
+    const finishWith = r => {
+      rate(ctx.c.id, r);
       if (ctx.opts.onDone) ctx.opts.onDone();
       else go(`#/set/${ctx.c.set}`);
-    });
+    };
+    $$('.rate button').forEach(b => b.onclick = () => finishWith(+b.dataset.r));
+    if ($('#useauto')) $('#useauto').onclick = () => finishWith(ctx.auto.r);
   }
+
+  /* ---------- Máy nghe và chấm ước lượng ---------- */
+  // Dùng nhận dạng giọng nói có sẵn của Safari/Chrome (miễn phí, không cần key). Không có thì quay về tự chấm.
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const STT = {
+    ok: () => !!SR && S.settings.autoScore !== false,
+    r: null, on: false, fin: '', int: '', err: '', onupdate: null,
+    start(onupdate) {
+      if (!STT.ok()) return false;
+      STT.fin = ''; STT.int = ''; STT.err = ''; STT.on = true; STT.onupdate = onupdate || null;
+      const run = () => {
+        let r;
+        try { r = new SR(); } catch (e) { STT.err = 'init'; return; }
+        r.lang = 'en-US'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+        let segFin = '';
+        r.onresult = e => {
+          let f = '', it = '';
+          for (let i = 0; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) f += x[0].transcript + ' '; else it += x[0].transcript + ' '; }
+          segFin = f; STT.int = it;
+          if (STT.onupdate) STT.onupdate((STT.fin + segFin + it).trim());
+        };
+        r.onerror = e => { STT.err = e.error || 'error'; if (/not-allowed|service-not-allowed|audio-capture/.test(STT.err)) STT.on = false; };
+        r.onend = () => {
+          STT.fin += segFin + (STT.int ? STT.int + ' ' : ''); segFin = ''; STT.int = '';
+          if (STT.on) setTimeout(() => { if (STT.on) run(); }, 120);
+          else { STT.r = null; if (STT._done) STT._done(); }
+        };
+        STT.r = r;
+        try { r.start(); } catch (e) { STT.err = 'start'; }
+      };
+      run();
+      return true;
+    },
+    stop() {
+      return new Promise(res => {
+        let done = false;
+        const fin = () => { if (done) return; done = true; STT._done = null; res((STT.fin + ' ' + STT.int).replace(/\s+/g, ' ').trim()); };
+        STT.on = false;
+        if (!STT.r) return fin();
+        STT._done = fin;
+        try { STT.r.stop(); } catch (e) { fin(); }
+        setTimeout(fin, 1800);
+      });
+    },
+  };
+  const STOPW = new Set('a an the and or but so to of in on at for with is are was were be been being it its this that these those i my me we our us you your they their them he she his her as by from can could would should will do does did have has had not no very also more most than then there here which who what when where why how about into because if all some any just only really quite much many one two well am im its dont'.split(' '));
+  const toks = t => (String(t).toLowerCase().replace(/[’']/g, '').match(/[a-z]+/g) || []);
+  const stem = w => { w = w.replace(/(ies)$/, 'y').replace(/(ing|ed|es|ly|s)$/, ''); return w.slice(0, 6); };
+  const content = t => Array.from(new Set(toks(t).filter(w => w.length > 2 && !STOPW.has(w)).map(stem)));
+  const LINKERS = ['because', 'however', 'although', 'first of all', 'firstly', 'secondly', 'in addition', 'moreover', 'furthermore', 'for example', 'for instance', 'on the other hand', 'in conclusion', 'overall', 'therefore', 'as a result', 'another', 'finally', 'besides', 'also', 'so that', 'such as', 'while', 'in my opinion', 'i think', 'i believe', 'to sum up', 'in short', 'this means'];
+  function analyse(c, transcript, durSec, talkSec) {
+    const words = toks(transcript).length;
+    const have = new Set(content(transcript));
+    const ideas = keyIdeas(c).map(t => {
+      const cw = content(t);
+      const hit = cw.filter(w => have.has(w)).length;
+      const need = Math.max(2, Math.min(4, Math.ceil(cw.length * 0.4)));
+      return { t, ok: cw.length ? hit >= Math.min(need, cw.length) : false };
+    });
+    const low = ' ' + toks(transcript).join(' ') + ' ';
+    const links = LINKERS.filter(l => low.includes(' ' + l + ' '));
+    const vocab = vocabOf(c).filter(x => { const cw = content(x.w); return cw.length && cw.every(w => have.has(w)); }).map(x => x.w);
+    const mins = Math.max(durSec, 5) / 60;
+    const wpm = Math.round(words / mins);
+    const cov = ideas.length ? ideas.filter(x => x.ok).length / ideas.length : 0;
+    const flu = Math.min(1, wpm / 100);
+    const len = Math.min(1, words / Math.max(20, talkSec * 1.5));
+    const lnk = Math.min(1, links.length / (c.kind === 'p1' || c.kind === 'fu' ? 2 : 5));
+    const total = words < 5 ? 0 : 0.35 * cov + 0.25 * flu + 0.25 * len + 0.15 * lnk;
+    const band = total >= 0.75 ? 'Đạt mức B2' : total >= 0.5 ? 'Khoảng B1' : 'Dưới B1';
+    const r = total >= 0.75 ? 2 : total >= 0.45 ? 1 : 0;
+    return { words, wpm, ideas, links, vocab, cov, flu, len, lnk, total, band, r, dur: Math.round(durSec) };
+  }
+  const RATE_NAME = ['Chưa được', 'Tạm', 'Tốt'];
+  function autoHtml(a, transcript, full = true) {
+    const bar = (label, v, note) => `<div class="abar"><div class="al"><span>${label}</span><b>${note}</b></div><div class="bar"><i style="width:${Math.round(v * 100)}%"></i></div></div>`;
+    const tips = [];
+    if (a.cov < 0.6) tips.push('Nói thiếu ý: xem các ý chưa tick bên dưới và thêm vào lần sau.');
+    if (a.wpm < 80) tips.push('Nói còn chậm hoặc ngắt quãng nhiều: luyện nói nhại thêm với bản ngắn.');
+    if (a.len < 0.7) tips.push('Câu trả lời còn ngắn: thêm lý do (because…) và ví dụ (For example…).');
+    if (a.lnk < 0.6) tips.push('Dùng thêm từ nối: First of all, However, In addition, For example…');
+    return `<div class="auto r${a.r}"><div class="eyebrow">Máy chấm (ước lượng)</div>
+      <div class="aband">${a.band}</div>
+      ${bar('Đủ ý so với bài mẫu', a.cov, `${a.ideas.filter(x => x.ok).length}/${a.ideas.length} ý`)}
+      ${bar('Tốc độ nói', a.flu, `${a.wpm} từ/phút`)}
+      ${bar('Độ dài', a.len, `${a.words} từ · ${a.dur} giây`)}
+      ${bar('Từ nối', a.lnk, a.links.length ? esc(a.links.join(', ')) : 'chưa có')}
+      ${a.vocab.length ? `<div class="tiny">Từ mới đã dùng: <b>${esc(a.vocab.join(', '))}</b></div>` : ''}
+      ${full && tips.length ? `<ul class="atips">${tips.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
+      ${full ? `<details><summary>Máy nghe được bạn nói</summary><p class="trans">${esc(transcript) || '<i>(trống)</i>'}</p></details>` : ''}
+      <p class="tiny">Máy chỉ nghe nội dung và tốc độ. Chưa chấm được phát âm và ngữ pháp, nên đây là điểm ước lượng. B2 cần khoảng 100 từ/phút, đủ ý, có lý do và ví dụ.</p></div>`;
+  }
+  const noSttHtml = () => SR ? (S.settings.autoScore === false ? '' : `<p class="warn tiny">Máy không nghe được bài nói lần này. Trên iPhone cần bật: Cài đặt › Cài đặt chung › Bàn phím › <b>Bật Đọc chính tả</b>, và cho phép Safari dùng Nhận dạng lời nói khi được hỏi. Lần này bạn tick tay giúp mình.</p>`)
+    : '<p class="tiny">Trình duyệt này chưa hỗ trợ máy nghe, bạn tick tay giúp mình. Trên iPhone hãy mở bằng Safari.</p>';
 
   /* ---------- Thi thử ---------- */
   const rnd = n => 1 + Math.floor(Math.random() * n);
@@ -904,17 +1014,20 @@
         <div class="timer" id="timer"><div class="tl" id="tlabel">Nghe câu hỏi…</div><div class="tv" id="tval">${mmss(it.prep || it.time)}</div></div>
         <div class="ctrl center"><button class="btn" id="skip">⏭ Tiếp</button></div></section>`);
       const tval = $('#tval'), tlabel = $('#tlabel'), timerEl = $('#timer');
-      let phase = 'q';
+      let phase = 'q', t0 = 0;
       const done = async () => {
         if (phase === 'end') return; phase = 'end'; clearTicker(); beep(440, 300);
-        const r = await Rec.stop();
-        if (r) { results.push({ it, r }); saveRec(it.card, r, 'Thi thử · ' + (PART_NAME[it.kind] || '')); } else results.push({ it, r: null });
+        const [r, tr] = await Promise.all([Rec.stop(), STT.ok() ? STT.stop() : Promise.resolve('')]);
+        const dur = t0 ? (Date.now() - t0) / 1000 : it.time;
+        if (r) saveRec(it.card, r, 'Thi thử · ' + (PART_NAME[it.kind] || ''));
+        results.push({ it, r: r || null, tr, dur });
         i++; setTimeout(step, 500);
       };
       const talk = async () => {
         phase = 'talk';
         try { await Rec.start(); } catch (e) { /* không có micro */ }
         beep(880, 160, 2); timerEl.classList.add('live'); tlabel.textContent = '● Đang ghi âm';
+        t0 = Date.now(); STT.start();
         countdown(it.time, l => { tval.textContent = mmss(l); timerEl.classList.toggle('low', l <= 10); }, done);
       };
       $('#skip').onclick = () => { if (phase === 'prep') { clearTicker(); talk(); } else if (phase === 'talk') done(); };
@@ -932,8 +1045,9 @@
         <p class="muted">Nghe từng phần, so với bài mẫu, rồi đánh dấu câu nào còn yếu để hệ thống cho ôn lại.</p></section>
         ${results.map((x, k) => `<section class="card"><div class="eyebrow">${PART_NAME[x.it.kind]}</div><div class="q small">${esc(x.it.text)}</div>
           ${x.r ? audioHtml(x.r.blob, `${x.r.dur}s`) : '<p class="muted">Không có bản ghi</p>'}
+          ${(x.a = x.tr && toks(x.tr).length >= 3 ? analyse(CARDS[x.it.card], x.tr, x.dur, x.it.time) : null) ? autoHtml(x.a, x.tr, false) + `<details><summary>Máy nghe được</summary><p class="trans">${esc(x.tr)}</p></details>` : ''}
           <details><summary>Bài mẫu</summary><div class="model small">${cardModel(CARDS[x.it.card]).map(p => `<p>${esc(p.t)}</p>`).join('')}</div></details>
-          <div class="rate sm" data-card="${x.it.card}"><button class="btn bad" data-r="0">Chưa được</button><button class="btn mid" data-r="1">Tạm</button><button class="btn good" data-r="2">Tốt</button></div></section>`).join('')}
+          <div class="rate sm" data-card="${x.it.card}" ${x.a ? `data-val="${x.a.r}"` : ''}>${[['bad', 0, 'Chưa được'], ['mid', 1, 'Tạm'], ['good', 2, 'Tốt']].map(([cl, v, l]) => `<button class="btn ${cl} ${x.a && x.a.r === v ? 'sel' : ''}" data-r="${v}">${l}</button>`).join('')}</div>${x.a ? '<p class="tiny">Máy đã chọn sẵn mức điểm, bấm nút khác nếu bạn muốn sửa.</p>' : ''}</section>`).join('')}
         <button class="btn primary block" id="fin">${opts.session ? 'Tiếp' : 'Xong'}</button>`, { noNav: true });
       $$('.rate.sm').forEach(g => $$('button', g).forEach(b => b.onclick = () => { $$('button', g).forEach(x => x.classList.remove('sel')); b.classList.add('sel'); g.dataset.val = b.dataset.r; }));
       $('#fin').onclick = () => {
@@ -969,6 +1083,7 @@
     body += `<section class="card"><h3>Cài đặt</h3>
       <a class="btn block" href="#/settings">Cỡ chữ & thời lượng học (${S.settings.minutes} phút)</a>
       ${audioCount() ? `<label class="sw"><input type="checkbox" id="eleven" ${S.settings.eleven !== false ? 'checked' : ''}> Dùng giọng ElevenLabs (${audioCount()} câu có sẵn)</label>` : '<p class="muted">Chưa có file giọng ElevenLabs, đang dùng giọng của iPhone.</p>'}
+      <label class="sw"><input type="checkbox" id="autosc" ${S.settings.autoScore !== false ? 'checked' : ''}> Máy nghe và chấm ước lượng sau khi nói${SR ? '' : ' (trình duyệt này chưa hỗ trợ)'}</label>
       <div class="field">Tốc độ đọc${speedSeg()}</div>
       <label class="field">Giọng iPhone (dự phòng)<select id="voice"><option value="">Tự chọn</option>${vs}</select></label>
       <button class="btn" id="test">▶ Nghe thử</button>
@@ -979,6 +1094,7 @@
     bindSpeed();
     $('#voice').onchange = e => { S.settings.voice = e.target.value; save(); };
     $('#test').onclick = () => { unlockAudio(); say(sentences(D.sets[0].p1[0].qs[0].a)[0]); };
+    $('#autosc').onchange = e => { S.settings.autoScore = e.target.checked; save(); };
     if ($('#eleven')) $('#eleven').onchange = e => { S.settings.eleven = e.target.checked; save(); };
     $('#exp').onclick = () => {
       const a = document.createElement('a');
