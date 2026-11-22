@@ -854,21 +854,27 @@
     start(onupdate) {
       if (!STT.ok()) return false;
       STT.fin = ''; STT.int = ''; STT.err = ''; STT.on = true; STT.onupdate = onupdate || null;
+      // Chống treo máy: giới hạn số lần khởi động lại, dừng hẳn nếu máy nghe tắt ngay liên tục hoặc báo lỗi
+      let restarts = 0, quick = 0;
       const run = () => {
         let r;
-        try { r = new SR(); } catch (e) { STT.err = 'init'; return; }
+        try { r = new SR(); } catch (e) { STT.err = 'init'; STT.on = false; return; }
         r.lang = 'en-US'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
-        let segFin = '';
+        let segFin = '', got = false;
+        const t0 = Date.now();
         r.onresult = e => {
+          got = true;
           let f = '', it = '';
           for (let i = 0; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) f += x[0].transcript + ' '; else it += x[0].transcript + ' '; }
           segFin = f; STT.int = it;
           if (STT.onupdate) STT.onupdate((STT.fin + segFin + it).trim());
         };
-        r.onerror = e => { STT.err = e.error || 'error'; if (/not-allowed|service-not-allowed|audio-capture/.test(STT.err)) STT.on = false; };
+        r.onerror = e => { STT.err = e.error || 'error'; if (STT.err !== 'no-speech') STT.on = false; };
         r.onend = () => {
           STT.fin += segFin + (STT.int ? STT.int + ' ' : ''); segFin = ''; STT.int = '';
-          if (STT.on) setTimeout(() => { if (STT.on) run(); }, 120);
+          quick = (!got && Date.now() - t0 < 2000) ? quick + 1 : 0;
+          if (quick >= 2 || restarts >= 25) { STT.on = false; if (!STT.err) STT.err = 'stopped'; }
+          if (STT.on) { restarts++; STT.r = null; setTimeout(() => { if (STT.on) run(); else if (STT._done) STT._done(); }, 400); }
           else { STT.r = null; if (STT._done) STT._done(); }
         };
         STT.r = r;

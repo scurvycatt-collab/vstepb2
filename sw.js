@@ -1,5 +1,5 @@
 // Cache để app mở được cả khi mạng yếu. Đổi VERSION mỗi lần cập nhật nội dung.
-const VERSION = 'vstep-b2-v6';
+const VERSION = 'vstep-b2-v7';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'assets/style.css', 'assets/data.js', 'assets/extra.js', 'assets/vocab.js', 'assets/plan.js', 'assets/app.js', 'assets/icon-180.png', 'assets/icon-192.png', 'assets/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
