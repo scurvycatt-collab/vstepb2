@@ -1,0 +1,15 @@
+{
+  "name": "VSTEP B2 Speaking",
+  "short_name": "VSTEP B2",
+  "description": "Tự học Speaking VSTEP B2, 30 phút mỗi ngày",
+  "lang": "vi",
+  "start_url": "./#/today",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#1f5f8b",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
