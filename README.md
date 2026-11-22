@@ -14,7 +14,20 @@ Trên iPhone: mở link bằng Safari → nút Chia sẻ → **Thêm vào MH ch�
 - **Đề:** toàn bộ 6 bộ đề (12 chủ đề Part 1 với 37 câu, 6 tình huống Part 2, 6 chủ đề Part 3 với 18 câu hỏi phụ), có bản dịch tiếng Việt.
 - **Tiến độ:** thống kê, câu còn yếu, bản ghi âm gần đây, cài đặt giọng đọc, sao lưu/khôi phục.
 
+- **Cỡ chữ** (Vừa, Lớn, Rất lớn, Cực lớn) và **thời lượng học mỗi ngày** (15, 20, 30, 40 phút hoặc 1 tiếng): bấm nút **Aa** ở trang chính.
+
 Dữ liệu tiến độ và bản ghi âm chỉ lưu trên máy đang dùng.
+
+## Giọng đọc ElevenLabs
+
+App dùng file MP3 tạo sẵn trong thư mục `audio/` nếu có, nếu không thì dùng giọng của iPhone. File được tạo bằng GitHub Actions, API key nằm trong GitHub Secrets, không bao giờ nằm trong code.
+
+1. ElevenLabs › Developers › API Keys: tạo key (chỉ cần quyền Text to Speech).
+2. Repo › Settings › Secrets and variables › Actions › New repository secret: tên `ELEVENLABS_API_KEY`, dán key.
+3. Repo › Actions › **Tạo giọng đọc ElevenLabs** › Run workflow, `limit` = 5 để nghe thử.
+4. Nghe thử trong app. Ưng thì chạy lại với `limit` = 0 để tạo hết (khoảng 32.600 ký tự, 390 câu).
+
+Câu đã tạo sẽ được bỏ qua ở lần chạy sau, nên chạy lại không tốn thêm credit. Muốn đổi giọng: nhập Voice ID khác và bật `redo`.
 
 ## Nguồn nội dung
 

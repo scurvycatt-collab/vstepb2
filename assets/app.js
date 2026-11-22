@@ -24,10 +24,21 @@
 
   /* ---------- Lưu trữ ---------- */
   const KEY = 'vstep-b2-progress-v1';
-  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.85, voice: '', showVi: false } });
+  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.85, voice: '', showVi: false, fs: 1, minutes: 30, eleven: true, setup: false } });
   let S;
   try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = defaults(); }
   S.settings = Object.assign(defaults().settings, S.settings || {});
+  const applyFs = () => document.documentElement.style.setProperty('--fs', S.settings.fs || 1);
+  applyFs();
+  // Chế độ thời lượng học mỗi ngày
+  const MODES = {
+    15: { review: 1, learn: false, shadow: false, attempts: 1, extraMock: false, info: 'Nghe 1 lần → nói & ghi âm → tự chấm. Bỏ bước học từ khóa (từ khóa hiện ngay ở bước Nói). Ôn 1 câu.' },
+    20: { review: 2, learn: false, shadow: true, attempts: 1, extraMock: false, info: 'Nghe + nói nhại → nói & ghi âm → tự chấm. Từ khóa hiện ở bước Nói. Ôn 2 câu.' },
+    30: { review: 3, learn: true, shadow: true, attempts: 1, extraMock: false, info: 'Đủ 4 bước: Nghe & nói nhại → Học từ khóa → Nói & ghi âm → Tự chấm. Ôn 3 câu.' },
+    40: { review: 5, learn: true, shadow: true, attempts: 2, extraMock: false, info: 'Đủ 4 bước, mỗi câu nói 2 lần (lần 2 che gợi ý). Ôn 5 câu.' },
+    60: { review: 8, learn: true, shadow: true, attempts: 2, extraMock: true, info: 'Đủ 4 bước, nói 2 lần, ôn 8 câu, cuối buổi thi thử thêm phần đang học.' },
+  };
+  const mode = () => MODES[S.settings.minutes] || MODES[30];
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* bỏ qua */ } };
 
   // IndexedDB cho bản ghi âm
@@ -102,9 +113,34 @@
   const loadVoices = () => { voices = synth ? synth.getVoices().filter(v => /^en[-_]/i.test(v.lang)) : []; };
   if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
   const pickVoice = () => voices.find(v => v.name === S.settings.voice) || voices.find(v => /en-US/i.test(v.lang) && /Samantha|Ava|Allison/i.test(v.name)) || voices.find(v => /en-US/i.test(v.lang)) || voices[0];
+  // File âm thanh ElevenLabs tạo sẵn (audio/manifest.json), nếu có
+  let AUDIO = {};
+  const norm = t => String(t).replace(/\s+/g, ' ').trim();
+  const fnv = t => { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(norm(t))) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
+  fetch('audio/manifest.json', { cache: 'no-cache' }).then(r => (r.ok ? r.json() : {})).then(m => { AUDIO = m || {}; }).catch(() => {});
+  const audioCount = () => Object.keys(AUDIO).length;
+  const player = new Audio(); player.preload = 'auto'; player.setAttribute('playsinline', '');
+  let playerDone = null;
+  function sayAudio(file, opts) {
+    return new Promise(res => {
+      if (playerDone) playerDone();
+      let t0 = Date.now(), finished = false;
+      const done = () => { if (finished) return; finished = true; playerDone = null; player.onended = player.onerror = player.onplaying = null; res(Date.now() - t0); };
+      playerDone = done;
+      player.src = file;
+      player.playbackRate = opts.rate || S.settings.rate;
+      if ('preservesPitch' in player) player.preservesPitch = true;
+      player.onplaying = () => { t0 = Date.now(); };
+      player.onended = done; player.onerror = done;
+      const p = player.play(); if (p && p.catch) p.catch(done);
+    });
+  }
   function say(text, opts = {}) {
+    const file = S.settings.eleven !== false && AUDIO[fnv(text)];
+    if (file) { if (synth) synth.cancel(); return sayAudio(file, opts); }
     return new Promise(res => {
       if (!synth) return res(0);
+      if (playerDone) { player.pause(); playerDone(); }
       synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       const v = pickVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
@@ -116,7 +152,7 @@
       synth.speak(u);
     });
   }
-  const stopSay = () => synth && synth.cancel();
+  const stopSay = () => { if (synth) synth.cancel(); if (playerDone) { player.pause(); playerDone(); } };
   const sentences = text => (text.match(/[^.!?]+[.!?]+["”’]?\s*|[^.!?]+$/g) || [text]).map(s => s.trim()).filter(Boolean);
 
   /* ---------- Âm báo ---------- */
@@ -253,7 +289,8 @@
         <h2>${esc(day.title)}</h2>
         ${dayOutline(day)}
         ${S.done[day.date] ? '<p class="ok">✓ Đã hoàn thành buổi hôm nay. Có thể học thêm hoặc ôn lại.</p>' : ''}
-        <a class="btn primary block" href="#/session/${day.date}">${S.done[day.date] ? 'Học lại buổi này' : 'Bắt đầu 30 phút'}</a>
+        <a class="btn primary block" href="#/session/${day.date}">${S.done[day.date] ? 'Học lại buổi này' : `Bắt đầu ${S.settings.minutes} phút`}</a>
+        <a class="modeinfo" href="#/settings">⏱ Chế độ ${S.settings.minutes} phút/ngày · Đổi</a>
       </section>`;
     } else if (t > PLAN.exam) {
       main += `<section class="card"><h2>Lộ trình đã kết thúc</h2><p>Bạn vẫn có thể luyện từng đề ở mục <b>Đề</b> hoặc <b>Thi thử</b>.</p></section>`;
@@ -266,7 +303,7 @@
     }
     main += `<section class="card tips"><h3>Một buổi 30 phút</h3>
       <ol class="steps"><li><b>Nghe & nói nhại</b> bài mẫu (5′)</li><li><b>Học</b> từ khóa + khung câu (8′)</li><li><b>Nói thật</b>: ghi âm, đếm giờ như phòng thi (12′)</li><li><b>Tự chấm</b>: nghe lại, tick checklist, ôn câu đến hạn (5′)</li></ol></section>`;
-    page('today', 'VSTEP B2 Speaking', main, { right: `<a class="icon-btn" href="#/templates" aria-label="Khung câu">Khung</a>` });
+    page('today', 'VSTEP B2 Speaking', main, { right: `<a class="icon-btn" href="#/settings" aria-label="Cỡ chữ và thời lượng">Aa</a><a class="icon-btn" href="#/templates" aria-label="Khung câu">Khung</a>` });
   }
   function dayOutline(day) {
     const parts = [];
@@ -287,6 +324,23 @@
     const t = today();
     const st = S.done[d.date] ? 'done' : d.date === t ? 'now' : d.date < t ? 'miss' : '';
     return `<a class="row ${st}" href="#/session/${d.date}"><span class="date">${fmtD(d.date)}</span><span class="ttl">${esc(d.title)}</span><span class="st">${st === 'done' ? '✓' : st === 'now' ? '●' : st === 'miss' ? '!' : ''}</span></a>`;
+  }
+
+  /* ---------- Cài đặt cỡ chữ + thời lượng ---------- */
+  const FS = [[1, 'Vừa'], [1.15, 'Lớn'], [1.3, 'Rất lớn'], [1.5, 'Cực lớn']];
+  function viewSettings() {
+    const first = !S.settings.setup;
+    const body = `${first ? '<section class="card"><h2>Chào bạn 👋</h2><p>Chọn cỡ chữ dễ đọc và thời gian học mỗi ngày. Bạn đổi lại được bất cứ lúc nào bằng nút <b>Aa</b> ở trang chính.</p></section>' : ''}
+      <section class="card"><h3>Cỡ chữ</h3><div class="seg fs" id="fs">${FS.map(([v, l]) => `<button data-v="${v}" class="${+S.settings.fs === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+        <div class="fsdemo"><b>Do you enjoy walking?</b><div class="vi">Bạn có thích đi bộ không?</div></div></section>
+      <section class="card"><h3>Mỗi ngày học bao lâu?</h3><div class="seg" id="mins">${Object.keys(MODES).map(m => `<button data-v="${m}" class="${+S.settings.minutes === +m ? 'on' : ''}">${m === '60' ? '1 tiếng' : m + ' phút'}</button>`).join('')}</div>
+        <p class="modeinfo" id="minfo">${esc(mode().info)}</p>
+        <p class="muted">Bài mới mỗi ngày giữ nguyên để kịp học hết 6 đề trước 29/12. Thời lượng chỉ thay đổi cách học: số bước, số lần nói, số câu ôn.</p></section>
+      <a class="btn primary block" href="#/today" id="ok">${first ? 'Bắt đầu' : 'Xong'}</a>`;
+    page('today', first ? 'Thiết lập' : 'Cỡ chữ & thời lượng', body, { back: first ? null : '#/today', noNav: first });
+    $$('#fs button').forEach(b => b.onclick = () => { S.settings.fs = +b.dataset.v; save(); applyFs(); $$('#fs button').forEach(x => x.classList.toggle('on', x === b)); });
+    $$('#mins button').forEach(b => b.onclick = () => { S.settings.minutes = +b.dataset.v; save(); $$('#mins button').forEach(x => x.classList.toggle('on', x === b)); $('#minfo').textContent = mode().info; });
+    $('#ok').onclick = () => { S.settings.setup = true; save(); };
   }
 
   /* ---------- Màn hình: Lịch ---------- */
@@ -354,11 +408,16 @@
     if (day.template) (day.template === 'all' ? ['p1', 'p2', 'p3'] : [day.template]).forEach(k => steps.push({ type: 'template', key: k }));
     day.cards.forEach(id => steps.push({ type: 'card', id }));
     if (day.mock) steps.push({ type: 'mock', mock: day.mock });
+    if (mode().extraMock && !day.mock && day.cards.length) {
+      const part = CARDS[day.cards[0]].kind === 'fu' ? 'p3' : CARDS[day.cards[0]].kind;
+      steps.push({ type: 'mock', mock: { parts: [part], random: true } });
+    }
     if (day.review) {
-      const max = day.reviewMax || (day.mock ? 3 : day.cards.length > 4 ? 2 : 4);
+      const md = mode();
+      const max = day.reviewMax ? Math.min(day.reviewMax, md.review + 4) : (day.mock && S.settings.minutes <= 15 ? 0 : md.review);
       dueCards(max, day.cards).forEach(id => steps.push({ type: 'card', id, review: true }));
     }
-    return { date, day, steps, i: 0, start: Date.now(), quick: day.cards.length > 4 };
+    return { date, day, steps, i: 0, start: Date.now(), budget: (S.settings.minutes || 30) * 60 };
   }
   function viewSession(date) {
     if (!SES || SES.date !== date) SES = buildSession(date);
@@ -369,14 +428,14 @@
   }
   function sesHeader() {
     const used = Math.floor((Date.now() - SES.start) / 1000);
-    return `<div class="sesbar"><span>${SES.i + 1}/${SES.steps.length}</span><div class="bar"><i style="width:${Math.round(SES.i / SES.steps.length * 100)}%"></i></div><span id="sesclock">${mmss(Math.max(0, 1800 - used))}</span></div>`;
+    return `<div class="sesbar"><span>${SES.i + 1}/${SES.steps.length}</span><div class="bar"><i style="width:${Math.round(SES.i / SES.steps.length * 100)}%"></i></div><span id="sesclock">${mmss(Math.max(0, SES.budget - used))}</span></div>`;
   }
   let sesClock = null;
   function startSesClock() {
     if (sesClock) clearInterval(sesClock);
     sesClock = setInterval(() => {
       const el = $('#sesclock'); if (!el || !SES) { clearInterval(sesClock); sesClock = null; return; }
-      el.textContent = mmss(Math.max(0, 1800 - Math.floor((Date.now() - SES.start) / 1000)));
+      el.textContent = mmss(Math.max(0, SES.budget - Math.floor((Date.now() - SES.start) / 1000)));
     }, 1000);
   }
   function renderStep() {
@@ -387,7 +446,7 @@
       page('today', 'Khung câu', sesHeader() + templateHtml(st.key) + `<p class="muted pad">Nghe từng dòng và đọc to theo 2–3 lần.</p><button class="btn primary block" id="nx">Tiếp</button>`, { back: '#/today', noNav: true });
       bindSay(); $('#nx').onclick = next; startSesClock();
     } else if (st.type === 'card') {
-      renderCard(CARDS[st.id], { session: true, review: st.review, quick: SES.quick && !st.review, onDone: next });
+      renderCard(CARDS[st.id], { session: true, review: st.review, onDone: next });
     } else if (st.type === 'mock') {
       startMock(resolveMock(st.mock), { session: true, onDone: next });
     }
@@ -403,23 +462,25 @@
   }
 
   /* ---------- Thẻ luyện tập: Nghe → Học → Nói → Chấm ---------- */
-  const STEPS = ['Nghe', 'Học', 'Nói', 'Chấm'];
   function renderCard(c, opts = {}) {
-    const ctx = { c, opts, step: opts.review ? 2 : 0, rec: null };
+    const full = !opts.session || mode().learn;
+    const steps = full ? [['Nghe', stepListen, bindListen], ['Học', stepLearn, bindLearn], ['Nói', stepSpeak, bindSpeak], ['Chấm', stepCheck, bindCheck]]
+      : [['Nghe', stepListen, bindListen], ['Nói', stepSpeak, bindSpeak], ['Chấm', stepCheck, bindCheck]];
+    const ctx = { c, opts, steps, step: opts.review ? steps.length - 2 : 0, rec: null, attempt: 0 };
     drawCard(ctx);
   }
   function drawCard(ctx) {
     const { c, opts } = ctx;
     const head = opts.session ? sesHeader() : '';
-    const stepper = `<div class="stepper">${STEPS.map((s, i) => `<button data-step="${i}" class="${i === ctx.step ? 'on' : i < ctx.step ? 'past' : ''}">${i + 1}. ${s}</button>`).join('')}</div>`;
+    const stepper = `<div class="stepper">${ctx.steps.map(([s], i) => `<button data-step="${i}" class="${i === ctx.step ? 'on' : i < ctx.step ? 'past' : ''}">${i + 1}. ${s}</button>`).join('')}</div>`;
     const tag = `<div class="eyebrow">Đề ${c.set} · ${PART_NAME[c.kind]}${opts.review ? ' · <b>Ôn tập</b>' : ''}</div>`;
-    const body = [stepListen, stepLearn, stepSpeak, stepCheck][ctx.step](ctx);
+    const body = ctx.steps[ctx.step][1](ctx);
     page(opts.session ? 'today' : 'sets', PART_NAME[c.kind], head + stepper + `<section class="card qcard">${tag}${questionHtml(c)}</section>` + body,
       { back: opts.session ? '#/today' : `#/set/${c.set}`, noNav: !!opts.session });
     $$('.stepper button').forEach(b => b.onclick = () => { stopAll(); ctx.step = +b.dataset.step; drawCard(ctx); });
     bindSay();
     const vt = $('#vitoggle'); if (vt) vt.onchange = () => { S.settings.showVi = vt.checked; save(); $$('.vi-tr').forEach(e => e.hidden = !vt.checked); };
-    [bindListen, bindLearn, bindSpeak, bindCheck][ctx.step](ctx);
+    ctx.steps[ctx.step][2](ctx);
     if (opts.session) startSesClock();
   }
   const toNext = ctx => { stopAll(); ctx.step++; drawCard(ctx); };
@@ -440,11 +501,11 @@
     const paras = cardModel(ctx.c);
     const showVi = S.settings.showVi;
     return `<section class="card">
-      <div class="ctrl"><button class="btn" id="playall">▶ Nghe cả bài</button><button class="btn primary" id="shadow">🗣 Nói nhại từng câu</button></div>
+      <div class="ctrl"><button class="btn" id="playall">▶ Nghe cả bài</button>${ctx.opts.session && !mode().shadow ? '' : '<button class="btn primary" id="shadow">🗣 Nói nhại từng câu</button>'}</div>
       <label class="sw"><input type="checkbox" id="vitoggle" ${showVi ? 'checked' : ''}> Hiện bản dịch</label>
       <div class="model">${paras.map((p, pi) => `${p.h ? `<div class="ph">${esc(p.h)}</div>` : ''}<p>${sentences(p.t).map((s, si) => `<span class="sent" data-p="${pi}" data-s="${si}">${esc(s)}</span> `).join('')}</p><p class="vi vi-tr" ${showVi ? '' : 'hidden'}>${esc(p.t_vi)}</p>`).join('')}</div>
       <p class="muted" id="shadowhint">Nói nhại: máy đọc 1 câu, bạn nói lại ngay câu đó trong khoảng lặng.</p>
-    </section><button class="btn primary block" id="nx">Tiếp: Học từ khóa</button>`;
+    </section><button class="btn primary block" id="nx">Tiếp: ${ctx.steps[ctx.step + 1][0] === 'Học' ? 'Học từ khóa' : 'Nói & ghi âm'}</button>`;
   }
   function bindListen(ctx) {
     const sents = $$('.sent');
@@ -460,7 +521,7 @@
       sents.forEach(x => x.classList.remove('hl', 'you'));
     };
     $('#playall').onclick = () => run(false);
-    $('#shadow').onclick = () => run(true);
+    if ($('#shadow')) $('#shadow').onclick = () => run(true);
     sents.forEach(el => el.onclick = () => { stop = true; unlockAudio(); sents.forEach(x => x.classList.remove('hl')); el.classList.add('hl'); say(el.textContent); });
     $('#nx').onclick = () => { stop = true; toNext(ctx); };
   }
@@ -495,7 +556,8 @@
     const kw = c.kind === 'p1' ? c.q.kw : c.kind === 'fu' ? c.f.kw : null;
     let cue = '';
     if (kw) cue = `<ul class="kw small">${kw.map(k => `<li>${esc(k)}</li>`).join('')}</ul>`;
-    else if (c.kind === 'p2') cue = `<p class="cue">★ ${esc(c.p2.outline.best)}</p>`;
+    else if (c.kind === 'p2') cue = `<p class="cue">★ ${esc(c.p2.outline.best)}</p><ul class="kw small">${c.p2.outline.opts.map(x => `<li>${esc(x.o)}: + ${esc(x.pro)}${x.con ? ` / − ${esc(x.con)}` : ''}</li>`).join('')}</ul>`;
+    else if (c.kind === 'p3') cue = `<ul class="kw small">${c.p3.mind.branches.concat([c.p3.mind.own]).map(x => `<li>${esc(x.t)}</li>`).join('')}</ul>`;
     return `<section class="card speak">
       <div class="timer" id="timer"><div class="tl" id="tlabel">${prep ? `Chuẩn bị ${prep / 60} phút, rồi nói ${talk / 60} phút` : `Nói khoảng ${talk} giây`}</div><div class="tv" id="tval">${mmss(prep || talk)}</div></div>
       <details class="cuebox" ${ctx.opts.review ? '' : 'open'}><summary>Gợi ý (cố gắng không nhìn)</summary>${cue || '<p class="muted">Dùng sơ đồ ý ở trên.</p>'}</details>
@@ -523,7 +585,10 @@
       if (phase !== 'talk') return;
       phase = 'done'; clearTicker(); if (auto) beep(440, 400, 1);
       timerEl.classList.remove('live', 'low'); stopB.hidden = true; go.hidden = false; go.textContent = '↻ Nói lại';
-      tlabel.textContent = auto ? 'Hết giờ' : 'Đã dừng';
+      ctx.attempt++;
+      const need = ctx.opts.session ? mode().attempts : 1;
+      if (ctx.attempt < need) { go.textContent = `↻ Lần ${ctx.attempt + 1}: nói lại, che gợi ý`; const cb = $('.cuebox'); if (cb) cb.open = false; }
+      tlabel.textContent = (auto ? 'Hết giờ' : 'Đã dừng') + (ctx.attempt < (ctx.opts.session ? mode().attempts : 1) ? ' · nên nói thêm 1 lần' : '');
       const r = await Rec.stop();
       if (r) { ctx.rec = r; showPlayback(r); saveRec(c.id, r, PART_NAME[c.kind]); $('#nx').textContent = 'Tiếp: Tự chấm'; $('#nx').classList.add('primary'); }
     };
@@ -709,8 +774,10 @@
     body += `<section class="card"><h3>Bản ghi âm gần đây</h3><div id="recs"><p class="muted">Đang tải…</p></div></section>`;
     const vs = voices.map(v => `<option value="${esc(v.name)}" ${v.name === S.settings.voice ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
     body += `<section class="card"><h3>Cài đặt</h3>
+      <a class="btn block" href="#/settings">Cỡ chữ & thời lượng học (${S.settings.minutes} phút)</a>
+      ${audioCount() ? `<label class="sw"><input type="checkbox" id="eleven" ${S.settings.eleven !== false ? 'checked' : ''}> Dùng giọng ElevenLabs (${audioCount()} câu có sẵn)</label>` : '<p class="muted">Chưa có file giọng ElevenLabs, đang dùng giọng của iPhone.</p>'}
       <label class="field">Tốc độ đọc mẫu: <b id="rv">${S.settings.rate}</b><input type="range" id="rate" min="0.6" max="1.1" step="0.05" value="${S.settings.rate}"></label>
-      <label class="field">Giọng đọc<select id="voice"><option value="">Tự chọn</option>${vs}</select></label>
+      <label class="field">Giọng iPhone (dự phòng)<select id="voice"><option value="">Tự chọn</option>${vs}</select></label>
       <button class="btn" id="test">▶ Nghe thử</button>
       <p class="muted">Muốn giọng hay hơn: Cài đặt iPhone › Trợ năng › Nội dung được đọc › Giọng nói › English, tải giọng “Enhanced”.</p></section>
       <section class="card"><h3>Sao lưu tiến độ</h3><p class="muted">Tiến độ chỉ lưu trên iPhone này. Sao lưu nếu bạn đổi máy hoặc xoá dữ liệu Safari.</p>
@@ -718,7 +785,8 @@
     page('stats', 'Tiến độ', body);
     $('#rate').oninput = e => { S.settings.rate = +e.target.value; $('#rv').textContent = S.settings.rate; save(); };
     $('#voice').onchange = e => { S.settings.voice = e.target.value; save(); };
-    $('#test').onclick = () => say('Well, honestly, I really enjoy walking because it helps me relax after a long day.');
+    $('#test').onclick = () => { unlockAudio(); say(sentences(D.sets[0].p1[0].qs[0].a)[0]); };
+    if ($('#eleven')) $('#eleven').onchange = e => { S.settings.eleven = e.target.checked; save(); };
     $('#exp').onclick = () => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: 'application/json' }));
@@ -737,7 +805,8 @@
   /* ---------- Router ---------- */
   const go = h => { if (location.hash === h) route(); else location.hash = h; };
   function route() {
-    const h = location.hash.replace(/^#\/?/, '') || 'today';
+    let h = location.hash.replace(/^#\/?/, '') || 'today';
+    if (!S.settings.setup && h === 'today') h = 'settings';
     const [name, arg] = h.split('/');
     if (name !== 'session' && SES) { /* rời buổi học nhưng giữ tiến độ */ }
     if (name !== 'session' && name !== 'mockrun') keepAwake(false);
@@ -753,6 +822,7 @@
       case 'mockrun': return viewMockRun(arg);
       case 'review': return viewReview();
       case 'stats': return viewStats();
+      case 'settings': return viewSettings();
       default: return viewToday();
     }
   }
