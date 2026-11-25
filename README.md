@@ -1,3 +1,5 @@
+> **Agent / người tiếp quản: đọc [HANDOFF.md](HANDOFF.md) trước tiên.** File này ghi kiến trúc, cách tạo giọng đọc, trạng thái và việc còn dở.
+
 # VSTEP B2 Speaking – tự học 30 phút/ngày
 
 Ứng dụng web chạy trên iPhone (Safari) để luyện kỹ năng Nói VSTEP B2 theo lộ trình 23/11 → 28/12/2026, thi ngày 29/12/2026.
