@@ -29,12 +29,13 @@
 
   /* ---------- Lưu trữ ---------- */
   const KEY = 'vstep-b2-progress-v1';
-  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.9, voice: '', showVi: false, fs: 1, minutes: 30, eleven: true, setup: false, guide: false, autoScore: true }, words: {}, vseen: {} });
+  const defaults = () => ({ done: {}, items: {}, log: [], settings: { rate: 0.9, voice: '', showVi: false, fs: 1, minutes: 30, prerec: true, setup: false, guide: false, autoScore: true }, words: {}, vseen: {} });
   let S;
   try { S = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = defaults(); }
   const hadGuide = !!S.settings && 'guide' in S.settings;
   S.settings = Object.assign(defaults().settings, S.settings || {});
   if (S.settings.setup && !hadGuide) S.settings.guide = true; // người dùng cũ: bỏ qua hướng dẫn
+  if ('eleven' in S.settings) { S.settings.prerec = S.settings.eleven !== false; delete S.settings.eleven; } // tên cũ của cài đặt
   S.words = S.words || {}; S.vseen = S.vseen || {};
   const applyFs = () => document.documentElement.style.setProperty('--fs', S.settings.fs || 1);
   applyFs();
@@ -138,7 +139,7 @@
   const loadVoices = () => { voices = synth ? synth.getVoices().filter(v => /^en[-_]/i.test(v.lang)) : []; };
   if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
   const pickVoice = () => voices.find(v => v.name === S.settings.voice) || voices.find(v => /en-US/i.test(v.lang) && /Samantha|Ava|Allison/i.test(v.name)) || voices.find(v => /en-US/i.test(v.lang)) || voices[0];
-  // File âm thanh ElevenLabs tạo sẵn (audio/manifest.json), nếu có
+  // File âm thanh Edge TTS tạo sẵn (audio/manifest.json), nếu có
   let AUDIO = {};
   const norm = t => String(t).replace(/\s+/g, ' ').trim();
   const fnv = t => { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(norm(t))) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
@@ -161,7 +162,7 @@
     });
   }
   function say(text, opts = {}) {
-    const file = S.settings.eleven !== false && AUDIO[fnv(text)];
+    const file = S.settings.prerec !== false && AUDIO[fnv(text)];
     if (file) { if (synth) synth.cancel(); return sayAudio(file, opts); }
     return new Promise(res => {
       if (!synth) return res(0);
@@ -1088,7 +1089,7 @@
     const vs = voices.map(v => `<option value="${esc(v.name)}" ${v.name === S.settings.voice ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
     body += `<section class="card"><h3>Cài đặt</h3>
       <a class="btn block" href="#/settings">Cỡ chữ & thời lượng học (${S.settings.minutes} phút)</a>
-      ${audioCount() ? `<label class="sw"><input type="checkbox" id="eleven" ${S.settings.eleven !== false ? 'checked' : ''}> Dùng giọng ElevenLabs (${audioCount()} câu có sẵn)</label>` : '<p class="muted">Chưa có file giọng ElevenLabs, đang dùng giọng của iPhone.</p>'}
+      ${audioCount() ? `<label class="sw"><input type="checkbox" id="prerec" ${S.settings.prerec !== false ? 'checked' : ''}> Dùng giọng đọc tạo sẵn (${audioCount()} câu có sẵn)</label>` : '<p class="muted">Chưa có file giọng đọc tạo sẵn, đang dùng giọng của iPhone.</p>'}
       <label class="sw"><input type="checkbox" id="autosc" ${S.settings.autoScore !== false ? 'checked' : ''}> Máy nghe và chấm ước lượng sau khi nói${SR ? '' : ' (trình duyệt này chưa hỗ trợ)'}</label>
       <div class="field">Tốc độ đọc${speedSeg()}</div>
       <label class="field">Giọng iPhone (dự phòng)<select id="voice"><option value="">Tự chọn</option>${vs}</select></label>
@@ -1101,7 +1102,7 @@
     $('#voice').onchange = e => { S.settings.voice = e.target.value; save(); };
     $('#test').onclick = () => { unlockAudio(); say(sentences(D.sets[0].p1[0].qs[0].a)[0]); };
     $('#autosc').onchange = e => { S.settings.autoScore = e.target.checked; save(); };
-    if ($('#eleven')) $('#eleven').onchange = e => { S.settings.eleven = e.target.checked; save(); };
+    if ($('#prerec')) $('#prerec').onchange = e => { S.settings.prerec = e.target.checked; save(); };
     $('#exp').onclick = () => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: 'application/json' }));

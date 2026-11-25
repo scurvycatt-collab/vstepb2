@@ -271,49 +271,7 @@ window.VSTEP_DATA = {
       ]
      }
     ]
-   },
-   "vocab": [
-    [
-     "affordable",
-     "có thể chi trả"
-    ],
-    [
-     "infrastructure",
-     "cơ sở hạ tầng"
-    ],
-    [
-     "fair regulations",
-     "quy định công bằng"
-    ],
-    [
-     "tax incentives",
-     "ưu đãi thuế"
-    ],
-    [
-     "encourage competition",
-     "khuyến khích cạnh tranh"
-    ],
-    [
-     "negative impacts",
-     "tác động tiêu cực"
-    ],
-    [
-     "despite",
-     "mặc dù"
-    ],
-    [
-     "issue",
-     "vấn đề"
-    ],
-    [
-     "overcrowding",
-     "quá tải"
-    ],
-    [
-     "serious",
-     "nghiêm trọng"
-    ]
-   ]
+   }
   },
   {
    "id": 2,
@@ -579,61 +537,7 @@ window.VSTEP_DATA = {
       ]
      }
     ]
-   },
-   "vocab": [
-    [
-     "argue",
-     "tranh cãi"
-    ],
-    [
-     "attention",
-     "sự chú ý"
-    ],
-    [
-     "appearance",
-     "ngoại hình"
-    ],
-    [
-     "interests",
-     "sở thích"
-    ],
-    [
-     "mood",
-     "tâm trạng"
-    ],
-    [
-     "anxiety",
-     "sự lo lắng"
-    ],
-    [
-     "serious",
-     "nghiêm trọng"
-    ],
-    [
-     "diseases",
-     "bệnh tật"
-    ],
-    [
-     "diabetes",
-     "bệnh tiểu đường"
-    ],
-    [
-     "obesity",
-     "béo phì"
-    ],
-    [
-     "cooperation",
-     "sự hợp tác"
-    ],
-    [
-     "discipline",
-     "kỷ luật"
-    ],
-    [
-     "improvement",
-     "sự tiến bộ"
-    ]
-   ]
+   }
   },
   {
    "id": 3,
@@ -889,8 +793,7 @@ window.VSTEP_DATA = {
       ]
      }
     ]
-   },
-   "vocab": []
+   }
   },
   {
    "id": 4,
@@ -1136,8 +1039,7 @@ window.VSTEP_DATA = {
       ]
      }
     ]
-   },
-   "vocab": []
+   }
   },
   {
    "id": 5,
@@ -1382,17 +1284,7 @@ window.VSTEP_DATA = {
       ]
      }
     ]
-   },
-   "vocab": [
-    [
-     "distractions",
-     "sự sao nhãng"
-    ],
-    [
-     "disciplined",
-     "có kỷ luật"
-    ]
-   ]
+   }
   },
   {
    "id": 6,
@@ -1633,8 +1525,7 @@ window.VSTEP_DATA = {
       ]
      }
     ]
-   },
-   "vocab": []
+   }
   }
  ],
  "templates": {

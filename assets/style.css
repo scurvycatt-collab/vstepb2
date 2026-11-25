@@ -182,7 +182,6 @@ p { margin: 8px 0; }
 /* Thẻ từ */
 .wlist { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
 .wcard { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
-.wemo { font-size: calc(36px * var(--fs)); line-height: 1; flex: 0 0 auto; }
 .wbody { flex: 1; min-width: 0; }
 .wtop { display: flex; align-items: center; gap: 8px; }
 .wtop .w { font-size: calc(20px * var(--fs)); }

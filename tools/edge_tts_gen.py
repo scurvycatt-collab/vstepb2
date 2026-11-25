@@ -1,32 +1,115 @@
 #!/usr/bin/env python3
-"""Tạo giọng đọc bằng giọng neural của Microsoft Edge (miễn phí, không cần key).
+"""Tạo giọng đọc MP3 cho app bằng giọng neural của Microsoft Edge (miễn phí, không cần key).
 
-    pip install edge-tts
-    python3 tools/edge_tts_gen.py --samples          # tạo file nghe thử vào samples/
-    python3 tools/edge_tts_gen.py                    # tạo toàn bộ vào audio/
+Chạy qua GitHub Actions: workflow "Tạo giọng đọc Edge" (.github/workflows/edge-tts.yml).
+Container của agent bị chặn dịch vụ Edge nên không chạy được trên đó. Trên máy cá nhân:
+    pip install edge-tts==7.3.1
+    python3 tools/edge_tts_gen.py --dry-run     # chỉ đếm số câu còn thiếu
+    python3 tools/edge_tts_gen.py               # tạo câu còn thiếu vào audio/
 
-Câu đã có file sẽ được bỏ qua. Dùng chung danh sách câu và mã file với
-tools/elevenlabs_tts.py, nên app không cần biết file do công cụ nào tạo.
+- Câu đã có file sẽ bỏ qua. --redo tạo lại tất cả (khi đổi giọng).
+- Kết quả: audio/<fnv>.mp3 và audio/manifest.json (app tự đọc file này).
 """
 import argparse
 import asyncio
 import json
 import os
-import sys
+import re
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from elevenlabs_tts import AUDIO_DIR, MANIFEST, ROOT, collect, fnv, load_data, sentences  # noqa: E402
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+AUDIO_DIR = os.path.join(ROOT, 'audio')
+MANIFEST = os.path.join(AUDIO_DIR, 'manifest.json')
 
-import edge_tts  # noqa: E402
-
-DEFAULT_ANSWER_VOICE = 'en-US-AvaMultilingualNeural'
+# Giọng đã chọn: câu hỏi giọng nam Anh (như giám khảo), bài mẫu/từ/cụm câu giọng nam Mỹ.
+DEFAULT_ANSWER_VOICE = 'en-US-AndrewMultilingualNeural'
 DEFAULT_QUESTION_VOICE = 'en-GB-RyanNeural'
-SAMPLE_ANSWER_VOICES = ['en-US-AvaMultilingualNeural', 'en-US-EmmaMultilingualNeural', 'en-US-AndrewMultilingualNeural', 'en-GB-SoniaNeural']
-SAMPLE_QUESTION_VOICES = ['en-GB-RyanNeural', 'en-US-BrianMultilingualNeural']
+
+
+def norm(t):
+    return re.sub(r'\s+', ' ', str(t)).strip()
+
+
+def fnv(t):
+    """Phải giống hệt hàm fnv() trong assets/app.js."""
+    h = 0x811c9dc5
+    for b in norm(t).encode('utf-8'):
+        h ^= b
+        h = (h * 0x01000193) & 0xffffffff
+    return '%08x' % h
+
+
+SENT_RE = re.compile(r'[^.!?]+[.!?]+["”’]?\s*|[^.!?]+$')
+
+
+def sentences(text):
+    """Phải giống hàm sentences() trong assets/app.js."""
+    parts = SENT_RE.findall(text) or [text]
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _load_js(name):
+    path = os.path.join(ROOT, 'assets', name)
+    if not os.path.exists(path):
+        return None
+    raw = open(path, encoding='utf-8').read()
+    return json.loads(raw[raw.index('{'):raw.rindex('}') + 1])
+
+
+def load_data():
+    data = _load_js('data.js')
+    extra = _load_js('extra.js')
+    if extra:
+        data['sets'] = data['sets'] + extra['sets']
+    data['vocab_js'] = _load_js('vocab.js') or {}
+    return data
+
+
+def collect(data):
+    """Trả về danh sách (text, loại) theo thứ tự, không trùng."""
+    items, seen = [], set()
+
+    def add(t, kind):
+        t = norm(t)
+        if t and t not in seen:
+            seen.add(t)
+            items.append((t, kind))
+
+    for s in data['sets']:
+        for tp in s['p1']:
+            add('Let’s talk about %s.' % tp['title'].lower(), 'q')
+            for q in tp['qs']:
+                add(q['q'], 'q')
+                for x in sentences(q['a']):
+                    add(x, 'a')
+        add(s['p2']['situation'], 'q')
+        for p in s['p2']['paras']:
+            for x in sentences(p['t']):
+                add(x, 'a')
+        add(s['p3']['topic'], 'q')
+        for p in s['p3']['speech'] + s['p3']['concl']:
+            for x in sentences(p['t']):
+                add(x, 'a')
+        for f in s['p3']['fu']:
+            add(f['q'], 'q')
+            for x in sentences(f['a']):
+                add(x, 'a')
+    for tpl in data['templates'].values():
+        for en, _vi in tpl['lines']:
+            add(en.replace('…', ''), 'a')
+    voc = data.get('vocab_js') or {}
+    for group in voc.get('groups', {}).values():
+        for x in group:
+            add(x['w'], 'a')
+            add(x['x'], 'a')
+    for _e, _t, lines in voc.get('phrases', []):
+        for en, _vi in lines:
+            add(en.replace('…', ''), 'a')
+    return items
 
 
 async def speak(text, voice, path, rate, strict=True):
     """Trả về True nếu tạo được file. Dịch vụ Edge đôi khi chặn tạm thời, nên chờ lâu dần rồi thử lại."""
+    import edge_tts
     for attempt in range(6):
         try:
             await edge_tts.Communicate(text, voice, rate=rate).save(path)
@@ -43,23 +126,6 @@ async def speak(text, voice, path, rate, strict=True):
     return False
 
 
-async def samples(rate):
-    d = load_data()
-    out = os.path.join(ROOT, 'samples')
-    os.makedirs(out, exist_ok=True)
-    ans = ' '.join(sentences(d['sets'][0]['p1'][0]['qs'][0]['a']))
-    p2 = ' '.join(sentences(d['sets'][1]['p2']['paras'][0]['t']))
-    q = d['sets'][0]['p1'][0]['qs'][0]['q']
-    for v in SAMPLE_ANSWER_VOICES:
-        name = v.replace('Neural', '').replace('Multilingual', '')
-        await speak(ans, v, os.path.join(out, 'mau-tra-loi-%s.mp3' % name), rate)
-        await speak(p2, v, os.path.join(out, 'mau-part2-%s.mp3' % name), rate)
-    for v in SAMPLE_QUESTION_VOICES:
-        name = v.replace('Neural', '').replace('Multilingual', '')
-        await speak(q, v, os.path.join(out, 'giam-khao-%s.mp3' % name), rate)
-    print('Đã tạo file nghe thử trong samples/')
-
-
 async def generate(a):
     items = collect(load_data())
     manifest = {}
@@ -67,6 +133,8 @@ async def generate(a):
         manifest = json.load(open(MANIFEST, encoding='utf-8'))
     todo = [(t, k) for t, k in items if fnv(t) not in manifest]
     print('Tổng %d câu, cần tạo %d câu.' % (len(items), len(todo)))
+    if a.dry_run:
+        return
     if a.limit:
         todo = todo[:a.limit]
     os.makedirs(AUDIO_DIR, exist_ok=True)
@@ -94,14 +162,14 @@ async def generate(a):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--samples', action='store_true')
+    ap.add_argument('--dry-run', action='store_true', help='Chỉ đếm số câu còn thiếu')
     ap.add_argument('--answer-voice', default=os.environ.get('ANSWER_VOICE') or DEFAULT_ANSWER_VOICE)
     ap.add_argument('--question-voice', default=os.environ.get('QUESTION_VOICE') or DEFAULT_QUESTION_VOICE)
     ap.add_argument('--rate', default=os.environ.get('RATE') or '+0%', help='Tốc độ gốc, ví dụ -5%%')
     ap.add_argument('--limit', type=int, default=0)
     ap.add_argument('--redo', action='store_true')
     a = ap.parse_args()
-    asyncio.run(samples(a.rate) if a.samples else generate(a))
+    asyncio.run(generate(a))
 
 
 if __name__ == '__main__':

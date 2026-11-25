@@ -1,6 +1,6 @@
 # HANDOFF: Hệ thống tự học VSTEP B2 Speaking
 
-Ghi chú cho agent tiếp theo. Cập nhật lần cuối: 25/11/2026.
+Ghi chú cho agent tiếp theo. Cập nhật lần cuối: 25/11/2026 (đã dọn repo).
 
 ## 1. Bối cảnh
 
@@ -17,7 +17,6 @@ Ghi chú cho agent tiếp theo. Cập nhật lần cuối: 25/11/2026.
 | Repo | https://github.com/scurvycatt-collab/vstepb2 (nhánh `main`, Pages build từ root) |
 | File đề gốc | Do người dùng upload (không nằm trong repo). Nội dung đã chuyển hết vào `assets/data.js` |
 | 10 chủ đề luyện thêm | Do người dùng tự tổng hợp và gửi (file `VSTEP_Speaking_B2_10_Topics_Full.json/.md`). Đã chuyển vào `assets/extra.js` |
-| Giọng nghe thử | Thư mục `samples/` trong repo, và thư mục chia sẻ của project `voice-samples/` |
 
 ## 3. Kiến trúc
 
@@ -26,7 +25,7 @@ Static PWA, vanilla HTML/CSS/JS, **không có build step**. Hash router (`#/toda
 ```
 index.html              nạp data.js → extra.js → vocab.js → plan.js → app.js
 manifest.webmanifest    PWA, Add to Home Screen trên iOS
-sw.js                   Service worker network-first. TĂNG VERSION mỗi lần đổi nội dung (hiện: vstep-b2-v7)
+sw.js                   Service worker network-first. TĂNG VERSION mỗi lần đổi nội dung (hiện: vstep-b2-v8)
 assets/
   data.js               window.VSTEP_DATA: 6 bộ đề gốc + templates (khung câu P1/P2/P3)
   extra.js              window.VSTEP_EXTRA: 10 bộ luyện thêm (id 7–16) + refs (nguồn)
@@ -36,13 +35,10 @@ assets/
   style.css             CSS, cỡ chữ theo biến --fs, có dark mode
   icon-*.png            icon app
 audio/                  ~1.180 file MP3 + manifest.json (giọng đọc tạo sẵn)
-samples/                file nghe thử giọng Edge
 tools/
-  elevenlabs_tts.py     danh sách câu cần đọc (collect), hàm hash fnv, sentences; tạo giọng ElevenLabs (đã bỏ, xem mục 6)
-  edge_tts_gen.py       tạo giọng Microsoft Edge neural (miễn phí), dùng chung collect/fnv
+  edge_tts_gen.py       script tạo giọng đọc Edge: danh sách câu (collect), hàm hash fnv, sentences, --dry-run
 .github/workflows/
   edge-tts.yml          workflow_dispatch: tạo giọng Edge, tự commit audio/ và kích hoạt Pages build
-  elevenlabs.yml        workflow_dispatch: bản ElevenLabs (cần secret ELEVENLABS_API_KEY), không dùng nữa
 ```
 
 ### Schema dữ liệu (rút gọn)
@@ -55,10 +51,9 @@ set = {
         outline:{ best, opts:[{o,pro,con,best?}] } },
   p3: { id:'s1-p3', topic, topic_vi, mind:{ center, branches:[{t,n}x3], own:{t,n} },
         speech:[{t,t_vi}], concl:[{t,t_vi}], fu:[{ id:'s1-p3-fu1', q, q_vi, a, a_vi, kw }] },
-  vocab: [[en, vi]]                      // danh sách cũ, ít dùng
 }
 VSTEP_VOCAB.groups = {
-  's1-p1-1': [ { e, w, p, m, x, xv } ],  // e emoji (không còn hiển thị), w từ, p loại từ, m nghĩa, x ví dụ (trích bài mẫu), xv dịch
+  's1-p1-1': [ { w, p, m, x, xv } ],     // w từ, p loại từ, m nghĩa, x ví dụ (trích bài mẫu), xv dịch
   's1-p2': [...], 's1-p3': [...],        // đề gốc: nhóm theo chủ đề P1 / P2 / P3 (P3 dùng chung cho câu hỏi phụ)
   's7': [...]                            // bộ luyện thêm: 1 nhóm cho cả bộ
 }
@@ -100,18 +95,19 @@ Ví dụ trong thẻ từ **phải trích nguyên văn từ bài mẫu** của n
 
 ## 6. Giọng đọc (TTS)
 
-- App phát MP3 tạo sẵn nếu có trong `audio/manifest.json`, nếu không thì dùng giọng iPhone (`speechSynthesis`). Khóa của manifest = **FNV-1a 32-bit** của câu đã chuẩn hóa khoảng trắng. Hàm `fnv`/`norm`/`sentences` trong `app.js` và `tools/elevenlabs_tts.py` **phải giống hệt nhau**. Bài mẫu được đọc theo từng câu.
+- App phát MP3 tạo sẵn nếu có trong `audio/manifest.json`, nếu không thì dùng giọng iPhone (`speechSynthesis`). Khóa của manifest = **FNV-1a 32-bit** của câu đã chuẩn hóa khoảng trắng. Hàm `fnv`/`norm`/`sentences` trong `app.js` và `tools/edge_tts_gen.py` **phải giống hệt nhau**. Bài mẫu được đọc theo từng câu.
+- Cài đặt trong app: "Dùng giọng đọc tạo sẵn" (`settings.prerec`, tên cũ `eleven` được tự chuyển đổi).
 - Giọng đang dùng (người dùng đã chọn): **câu hỏi = `en-GB-RyanNeural`**, **bài mẫu/từ/cụm câu = `en-US-AndrewMultilingualNeural`**. Phát lại bằng `playbackRate` theo tốc độ người dùng chọn.
 - **Thêm nội dung mới thì phải tạo giọng**:
-  1. Đảm bảo `collect()` trong `tools/elevenlabs_tts.py` gom được câu mới (hiện gom: câu hỏi, bài mẫu, khung câu, từ và ví dụ trong vocab.js, kho cụm câu).
-  2. Chạy workflow **"Tạo giọng đọc Edge (miễn phí)"** (`edge-tts.yml`) với inputs `mode=all`, `answer_voice=en-US-AndrewMultilingualNeural`, `question_voice=en-GB-RyanNeural`, `redo=false`. Câu đã có file sẽ bỏ qua. Workflow tự commit `audio/` và kích hoạt Pages build.
-  3. Kiểm tra số câu còn thiếu: `python3 -c "import sys,json;sys.path.insert(0,'tools');import elevenlabs_tts as e;i=e.collect(e.load_data());m=json.load(open('audio/manifest.json'));print([t for t,_ in i if e.fnv(t) not in m])"`
+  1. Đảm bảo `collect()` trong `tools/edge_tts_gen.py` gom được câu mới (hiện gom: câu hỏi, bài mẫu, khung câu, từ và ví dụ trong vocab.js, kho cụm câu).
+  2. Chạy workflow **"Tạo giọng đọc Edge (miễn phí)"** (`edge-tts.yml`) với inputs `answer_voice=en-US-AndrewMultilingualNeural`, `question_voice=en-GB-RyanNeural`, `redo=false`. Câu đã có file sẽ bỏ qua. Workflow tự commit `audio/` và kích hoạt Pages build.
+  3. Kiểm tra số câu còn thiếu (không cần cài edge-tts): `python3 tools/edge_tts_gen.py --dry-run`
 - **Lưu ý**:
   - Container của agent bị proxy chặn `speech.platform.bing.com`, nên chỉ tạo giọng được trong GitHub Actions.
   - Dịch vụ Edge hay chặn tạm thời ("No audio was received"). Script đã có backoff, bỏ qua câu lỗi và lưu phần đã làm. Lần chạy 794 câu mất vài tiếng.
   - Gọi workflow bằng GitHub MCP `actions_run_trigger`. Pages API bị chặn từ container.
 - **Trạng thái 25/11**: 1.183/1.184 câu có giọng. Còn thiếu 1 câu: `"In my opinion,"` (cụm câu). Chạy lại workflow như trên là đủ.
-- ElevenLabs: tài khoản người dùng chỉ có 500 credit nên đã bỏ. Nếu dùng lại thì key **chỉ được để trong repo secret `ELEVENLABS_API_KEY`**, không bao giờ đưa vào code hay client.
+- Lịch sử: từng thử ElevenLabs nhưng không đủ credit. Toàn bộ code ElevenLabs đã xoá ngày 25/11. Không quay lại trừ khi người dùng yêu cầu; nếu cần API key thì chỉ để trong GitHub repo secret, không bao giờ đưa vào code hay client.
 
 ## 7. Quy ước làm việc
 

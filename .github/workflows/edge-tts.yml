@@ -3,14 +3,9 @@ name: Tạo giọng đọc Edge (miễn phí)
 on:
   workflow_dispatch:
     inputs:
-      mode:
-        description: 'samples = chỉ tạo file nghe thử, all = tạo toàn bộ'
-        type: choice
-        options: [samples, all]
-        default: samples
       answer_voice:
         description: 'Giọng bài mẫu'
-        default: 'en-US-AvaMultilingualNeural'
+        default: 'en-US-AndrewMultilingualNeural'
         required: true
       question_voice:
         description: 'Giọng giám khảo'
@@ -43,20 +38,16 @@ jobs:
           ANSWER_VOICE: ${{ inputs.answer_voice }}
           QUESTION_VOICE: ${{ inputs.question_voice }}
         run: |
-          if [ "${{ inputs.mode }}" = "samples" ]; then
-            python tools/edge_tts_gen.py --samples
-          else
-            EXTRA=""
-            if [ "${{ inputs.redo }}" = "true" ]; then EXTRA="--redo"; fi
-            python tools/edge_tts_gen.py $EXTRA
-          fi
+          EXTRA=""
+          if [ "${{ inputs.redo }}" = "true" ]; then EXTRA="--redo"; fi
+          python tools/edge_tts_gen.py $EXTRA
       - name: Lưu file vào repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for d in audio samples; do if [ -d "$d" ]; then git add -A "$d"; fi; done
+          git add -A audio
           if git diff --cached --quiet; then echo "Không có file mới"; exit 0; fi
-          git commit -m "Thêm giọng đọc Edge (${{ inputs.mode }})"
+          git commit -m "Thêm giọng đọc Edge"
           git pull --rebase origin main
           git push
       - name: Cập nhật GitHub Pages

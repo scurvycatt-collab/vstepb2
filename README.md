@@ -1,48 +1,41 @@
 > **Agent / người tiếp quản: đọc [HANDOFF.md](HANDOFF.md) trước tiên.** File này ghi kiến trúc, cách tạo giọng đọc, trạng thái và việc còn dở.
 
-# VSTEP B2 Speaking – tự học 30 phút/ngày
+# VSTEP B2 Speaking: tự học mỗi ngày
 
-Ứng dụng web chạy trên iPhone (Safari) để luyện kỹ năng Nói VSTEP B2 theo lộ trình 23/11 → 28/12/2026, thi ngày 29/12/2026.
+Ứng dụng web chạy trên iPhone (Safari) để luyện kỹ năng Nói VSTEP B2 theo lộ trình 23/11 đến 28/12/2026, thi ngày 29/12/2026.
 
 **Mở app:** https://scurvycatt-collab.github.io/vstepb2/
-Trên iPhone: mở link bằng Safari → nút Chia sẻ → **Thêm vào MH chính**.
+Trên iPhone: mở link bằng Safari, bấm nút Chia sẻ, chọn **Thêm vào MH chính**.
 
 ## Có gì trong app
 
-- **Hôm nay:** bài của ngày theo lịch, đồng hồ 30 phút, chuỗi ngày học, câu đến hạn ôn.
-- **Mỗi thẻ học 4 bước:** Nghe & nói nhại bài mẫu → Học từ khóa / dàn ý → Nói có ghi âm, đếm giờ như phòng thi → Tự chấm theo checklist.
-- **Ôn tập giãn cách:** câu đã học quay lại sau 1, 3, 7, 14 ngày tùy bạn tự đánh giá.
-- **Thi thử:** máy đọc câu hỏi, đếm giờ (Part 2 và Part 3 có 1 phút chuẩn bị), ghi âm từng phần, nghe lại và so với bài mẫu.
-- **Đề:** toàn bộ 6 bộ đề (12 chủ đề Part 1 với 37 câu, 6 tình huống Part 2, 6 chủ đề Part 3 với 18 câu hỏi phụ), có bản dịch tiếng Việt.
-- **Tiến độ:** thống kê, câu còn yếu, bản ghi âm gần đây, cài đặt giọng đọc, sao lưu/khôi phục.
-
-- **Cỡ chữ** (Vừa, Lớn, Rất lớn, Cực lớn) và **thời lượng học mỗi ngày** (15, 20, 30, 40 phút hoặc 1 tiếng): bấm nút **Aa** ở trang chính.
+- **Hôm nay:** bài của ngày theo lịch, chuỗi ngày học, câu và từ đến hạn ôn.
+- **Mỗi thẻ học 5 bước:** Từ mới, Nghe (bản ngắn hoặc đầy đủ, nghe chậm, nói nhại), Dàn ý, Nói có ghi âm và đếm giờ như phòng thi, Chấm điểm (máy chấm ước lượng hoặc tự chấm).
+- **Ôn tập giãn cách:** câu và từ đã học quay lại sau 1, 3, 7, 14 ngày.
+- **Thi thử:** máy đọc câu hỏi, đếm giờ, ghi âm từng phần, nghe lại và so với bài mẫu. Chọn ngẫu nhiên từ 16 bộ.
+- **Đề:** 6 bộ đề gốc và 10 bộ luyện thêm, có bản dịch, từ vựng từng bộ, trang Câu mẫu.
+- **Cài đặt** (nút Aa): cỡ chữ, thời lượng học mỗi ngày (15, 20, 30, 40 phút hoặc 1 tiếng), tốc độ đọc.
 
 Dữ liệu tiến độ và bản ghi âm chỉ lưu trên máy đang dùng.
 
-## Giọng đọc ElevenLabs
+## Giọng đọc
 
-App dùng file MP3 tạo sẵn trong thư mục `audio/` nếu có, nếu không thì dùng giọng của iPhone. File được tạo bằng GitHub Actions, API key nằm trong GitHub Secrets, không bao giờ nằm trong code.
+App phát file MP3 tạo sẵn trong `audio/` bằng giọng neural Microsoft Edge (miễn phí, không cần key): câu hỏi giọng `en-GB-RyanNeural`, bài mẫu và từ vựng giọng `en-US-AndrewMultilingualNeural`. Câu nào chưa có file thì dùng giọng của iPhone.
 
-1. ElevenLabs › Developers › API Keys: tạo key (chỉ cần quyền Text to Speech).
-2. Repo › Settings › Secrets and variables › Actions › New repository secret: tên `ELEVENLABS_API_KEY`, dán key.
-3. Repo › Actions › **Tạo giọng đọc ElevenLabs** › Run workflow, `limit` = 5 để nghe thử.
-4. Nghe thử trong app. Ưng thì chạy lại với `limit` = 0 để tạo hết (khoảng 32.600 ký tự, 390 câu).
-
-Câu đã tạo sẽ được bỏ qua ở lần chạy sau, nên chạy lại không tốn thêm credit. Muốn đổi giọng: nhập Voice ID khác và bật `redo`.
-
-## Nguồn nội dung
-
-Câu hỏi, bài mẫu, từ khóa và bản dịch lấy từ file `VSTEP_SPEAKING_EV2`. Từ khóa cho các câu chưa có trong file, sơ đồ ý Part 3 và dàn ý Part 2 được bổ sung dựa trên bài mẫu.
+Thêm hoặc sửa câu: vào Repo › Actions › **Tạo giọng đọc Edge (miễn phí)** › Run workflow, giữ giọng mặc định, `redo` tắt. Câu đã có file sẽ được bỏ qua.
 
 ## Cấu trúc
 
 ```
-index.html            trang chính
-assets/data.js        dữ liệu 6 bộ đề
-assets/plan.js        lịch học từng ngày
-assets/app.js         logic app (ghi âm, đếm giờ, ôn tập, thi thử)
-assets/style.css      giao diện
+index.html                 trang chính
+assets/data.js             6 bộ đề gốc + khung câu
+assets/extra.js            10 bộ luyện thêm
+assets/vocab.js            từ vựng theo bài + kho cụm câu
+assets/plan.js             lịch học từng ngày
+assets/app.js              logic app
+assets/style.css           giao diện
+audio/                     giọng đọc tạo sẵn + manifest.json
+tools/edge_tts_gen.py      script tạo giọng đọc (chạy qua GitHub Actions)
 sw.js, manifest.webmanifest   chạy như app khi thêm vào màn hình chính
 ```
 
